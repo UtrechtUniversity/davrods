@@ -1,0 +1,24 @@
+# Output files
+*.slo
+*.la
+*.lo
+*.o
+*.so
+/.libs/
+README.html
+/doc
+
+# Local backup and swap files
+*~*
+*.swp
+*.swo
+.clang_complete
+GPATH
+GRTAGS
+GSYMS
+GTAGS
+\#*
+.\#*
+
+# Vim ctags
+tags
