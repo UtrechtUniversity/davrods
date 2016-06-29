@@ -1403,12 +1403,16 @@ static dav_error *dav_copy_walk_callback(dav_walk_resource *wres, int calltype) 
     size_t src_len = strlen(src_path);
 
     if (src_len > src_root_len) {
-        if (dst_root_len + (src_root_len - src_len) < MAX_NAME_LEN) {
+        if (dst_root_len + (src_len - src_root_len) < MAX_NAME_LEN) {
             strcat(dst_path, src_path + src_root_len);
         } else {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
-                "Generated a copy destination filename exceeding iRODS MAX_NAME_LEN limits for source resource <%s>. Aborting copy.",
-                resource->uri
+                "Generated a copy destination filename exceeding iRODS MAX_NAME_LEN (%u) limits for source resource <%s> (%lu+(%lu-%lu)). Aborting copy.",
+                MAX_NAME_LEN,
+                resource->uri,
+                dst_root_len,
+                src_root_len,
+                src_len
             );
             return dav_new_error(
                 resource->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
