@@ -29,8 +29,8 @@ Davrods requires the following packages to be installed on your server:
 ### Using the binary distribution ###
 
 For binary installation, download the package for your platform at
-https://github.com/cjsmeele/davrods/releases and install it using your
-package manager.
+https://github.com/UtrechtUniversity/davrods/releases and install it
+using your package manager.
 
 We currently distribute RPM packages for CentOS 7 only.
 If you require packaging for a different platform, please contact us
