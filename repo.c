@@ -811,6 +811,8 @@ static dav_error *dav_repo_seek_stream(
     );
 }
 
+static const char *dav_repo_getetag(const dav_resource *resource);
+
 static dav_error *dav_repo_set_headers(
     request_rec *r,
     const dav_resource *resource
@@ -832,14 +834,13 @@ static dav_error *dav_repo_set_headers(
             : "Thu, 01 Jan 1970 00:00:00 GMT"
     );
 
-    // TODO: Set etag for conditional requests.
-
     // }}}
-    // Set Content-Length header. {{{
+
+    const char *etag = dav_repo_getetag(resource);
+    if (etag && strlen(etag))
+        apr_table_setn(r->headers_out, "ETag", etag);
 
     ap_set_content_length(r, resource->info->stat->objSize);
-
-    // }}}
 
     return 0;
 }

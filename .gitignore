@@ -4,11 +4,11 @@
 *.lo
 *.o
 *.so
-/.libs/
-README.html
+/.libs
 /doc
 
-# Local backup and swap files
+# Local files
+/dist
 *~*
 *.swp
 *.swo
@@ -17,8 +17,6 @@ GPATH
 GRTAGS
 GSYMS
 GTAGS
+tags
 \#*
 .\#*
-
-# Vim ctags
-tags
