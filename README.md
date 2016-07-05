@@ -26,6 +26,14 @@ Davrods requires the following packages to be installed on your server:
 - iRODS 4.1.x client libraries (in package `irods-runtime`, available
   from [the iRODS website](http://irods.org/download/))
 
+Due to the way iRODS libraries are packaged, specifically, its network
+plugins, one of the following packages must also be installed:
+
+- `irods-icommands` *OR* `irods-icat` *OR* `irods-resource`.
+
+These three packages all provide the necessary libraries in
+`/var/lib/irods/plugins/network`.
+
 ### Using the binary distribution ###
 
 For binary installation, download the package for your platform at
