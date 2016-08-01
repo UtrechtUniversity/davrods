@@ -79,17 +79,35 @@ struct dav_stream {
 };
 
 static dav_error *set_rods_path_from_uri(dav_resource *resource) {
-    // TODO: Use `root_dir` to support Dav service with a root URI other than '/'.
+    // Set iRODS path and relative URI properties of the resource context based on the resource URI.
+
+    const char *uri = resource->uri;
+
+    // Chop root_dir off of the uri if applicable.
+    if (resource->info->root_dir && strlen(resource->info->root_dir) > 1) {
+        // We expect the URI to contain the specified root_dir (<- the Location in which davrods runs).
+        if (strstr(uri, resource->info->root_dir) == uri) {
+            uri += strlen(resource->info->root_dir);
+        } else {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
+                          "Assertion failure: Root dir <%s> not in URI <%s>.",
+                          resource->info->root_dir, uri);
+            return dav_new_error(resource->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
+                                 "Malformed internal path");
+        }
+    }
+
+    resource->info->relative_uri = uri;
 
     const char *rods_root = resource->info->rods_root;
     char *prefixed_path = rods_root
-        ? apr_pstrcat(resource->pool, rods_root, resource->uri, NULL)
-        : apr_pstrdup(resource->pool, resource->uri);
+        ? apr_pstrcat(resource->pool, rods_root, uri, NULL)
+        : apr_pstrdup(resource->pool, uri);
 
     if (strlen(prefixed_path) >= MAX_NAME_LEN) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
             "Generated an iRODS path exceeding iRODS path length limits for URI <%s>",
-            resource->uri
+            uri
         );
         return dav_new_error(
             resource->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
@@ -101,7 +119,7 @@ static dav_error *set_rods_path_from_uri(dav_resource *resource) {
     if (status < 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
             "Could not translate URI <%s> to an iRODS path: %s",
-            resource->uri,
+            uri,
             get_rods_error_msg(status)
         );
         return dav_new_error(
@@ -112,7 +130,7 @@ static dav_error *set_rods_path_from_uri(dav_resource *resource) {
 
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, resource->info->r,
         "Mapped URI <%s> to rods path <%s>",
-        resource->uri, resource->info->rods_path
+        uri, resource->info->rods_path
     );
 
     return NULL;
@@ -249,7 +267,7 @@ static dav_error *get_dav_resource_rods_info(dav_resource *resource) {
  * \brief Create a DAV resource struct for the given request URI.
  *
  * \param      r               the request that lead to this resource
- * \param      root_dir        (TODO: Use this to support non-toplevel dav service. Note: dav_fs leaves it unused)
+ * \param      root_dir        the root URI where Davrods lives (its <Location>)
  * \param      label           unused
  * \param      use_checked_in  unused
  * \param[out] result_resource
@@ -290,6 +308,9 @@ static dav_error *dav_repo_get_resource(
 
     // Get iRODS exposed root dir.
     res_private->rods_root = get_rods_root(res_private->davrods_pool, r);
+
+    WHISPER("Root dir is %s\n", root_dir);
+    res_private->root_dir = root_dir;
 
     // }}}
     // Create DAV resource {{{
@@ -1006,7 +1027,7 @@ static dav_error *deliver_directory(
 
     // Send start of HTML document.
     apr_brigade_printf(bb, NULL, NULL, "<!DOCTYPE html>\n<html>\n<head><title>Index of %s on %s</title></head>\n",
-                       ap_escape_html(pool, resource->uri),
+                       ap_escape_html(pool, resource->info->relative_uri),
                        ap_escape_html(pool, resource->info->conf->rods_zone));
     apr_brigade_printf(bb, NULL, NULL,
                      "<body>\n\n"
@@ -1015,10 +1036,10 @@ static dav_error *deliver_directory(
                      "              If you want to script access to these WebDAV collections,\n"
                      "              please use the PROPFIND method instead. -->\n\n"
                      "<h1>Index of %s on %s</h1>\n",
-                     ap_escape_html(pool, resource->uri),
+                     ap_escape_html(pool, resource->info->relative_uri),
                      ap_escape_html(pool, resource->info->conf->rods_zone));
 
-    if (strcmp(resource->uri, "/"))
+    if (strcmp(resource->info->relative_uri, "/"))
         apr_brigade_puts(bb, NULL, NULL, "<p><a href=\"..\">↖ Parent collection</a></p>\n");
 
     apr_brigade_puts(bb, NULL, NULL,
@@ -1452,8 +1473,6 @@ static dav_error *walker(
                 
                 ctx->resource.exists     = 0;
                 ctx->resource.collection = 0;
-
-                // XXX FIXME: 20160313: Slash te veel in de URI.
 
                 // Call callback function.
                 err = (*ctx->params->func)(&ctx->wres, DAV_CALLTYPE_LOCKNULL);
