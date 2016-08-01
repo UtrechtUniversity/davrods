@@ -798,17 +798,25 @@ static dav_error *dav_repo_seek_stream(
     dav_stream *stream,
     apr_off_t abs_pos
 ) {
-    ap_log_rerror(
-        APLOG_MARK, APLOG_ERR, APR_SUCCESS, stream->resource->info->r,
-        "Unimplemented Davrods function <%s>", __func__
-    );
+    openedDataObjInp_t seek_inp = { 0 };
+    seek_inp.l1descInx = stream->data_obj.l1descInx;
+    seek_inp.offset    = abs_pos;
+    seek_inp.whence    = SEEK_SET;
 
-    // TODO.
+    fileLseekOut_t *seek_out = NULL;
+    int status = rcDataObjLseek(stream->resource->info->rods_conn, &seek_inp, &seek_out);
 
-    return dav_new_error(
-        stream->pool, HTTP_NOT_IMPLEMENTED, 0, 0,
-        "Support for partial writes in PUT requests is currently unimplemented"
-    );
+    if (seek_out)
+        free(seek_out);
+
+    if (status < 0) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, stream->resource->info->r,
+                      "rcDataObjLseek failed: %d = %s", status, get_rods_error_msg(status));
+        return dav_new_error(stream->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
+                             "Could not seek file for partial upload or resume");
+    } else {
+        return NULL;
+    }
 }
 
 static const char *dav_repo_getetag(const dav_resource *resource);
@@ -1857,7 +1865,7 @@ const dav_hooks_repository davrods_hooks_repository = {
     dav_repo_open_stream,
     dav_repo_close_stream,
     dav_repo_write_stream,
-    dav_repo_seek_stream, /* Unimplemented: see comment in that function */
+    dav_repo_seek_stream,
     dav_repo_set_headers,
     dav_repo_deliver,
     dav_repo_create_collection,
