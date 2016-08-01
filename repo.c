@@ -803,7 +803,7 @@ static dav_error *dav_repo_seek_stream(
         "Unimplemented Davrods function <%s>", __func__
     );
 
-    // XXX: We have not yet encountered a client that will make use of this feature.
+    // TODO.
 
     return dav_new_error(
         stream->pool, HTTP_NOT_IMPLEMENTED, 0, 0,
@@ -819,58 +819,44 @@ static dav_error *dav_repo_set_headers(
 ) {
     // Set response headers for GET requests.
 
-    // Set Last-Modified header. {{{
+    if (resource->collection) {
+        // A GET on a collection => client must be a web browser / standard HTTP client.
+        // We will output an HTML directory listing.
+        ap_set_content_type(r, "text/html; charset=utf-8");
+        // Do not let them cache directory content renders.
+        apr_table_setn(r->headers_out, "Cache-Control", "no-cache, must-revalidate");
+    } else {
+        char *date_str     = apr_pcalloc(r->pool, APR_RFC822_DATE_LEN);
+        assert(date_str);
+        uint64_t timestamp = atoll(resource->info->stat->modifyTime);
+        int status         = apr_rfc822_date(date_str, timestamp*1000*1000);
 
-    char *date_str     = apr_pcalloc(r->pool, APR_RFC822_DATE_LEN);
-    assert(date_str);
-    uint64_t timestamp = atoll(resource->info->stat->modifyTime);
-    int status         = apr_rfc822_date(date_str, timestamp*1000*1000);
+        apr_table_setn(
+            r->headers_out,
+            "Last-Modified",
+            status >= 0
+                ? date_str
+                : "Thu, 01 Jan 1970 00:00:00 GMT"
+        );
+        const char *etag = dav_repo_getetag(resource);
+        if (etag && strlen(etag))
+            apr_table_setn(r->headers_out, "ETag", etag);
 
-    apr_table_setn(
-        r->headers_out,
-        "Last-Modified",
-        status >= 0
-            ? date_str
-            : "Thu, 01 Jan 1970 00:00:00 GMT"
-    );
-
-    // }}}
-
-    const char *etag = dav_repo_getetag(resource);
-    if (etag && strlen(etag))
-        apr_table_setn(r->headers_out, "ETag", etag);
-
-    ap_set_content_length(r, resource->info->stat->objSize);
+        ap_set_content_length(r, resource->info->stat->objSize);
+    }
 
     return 0;
 }
 
-
-static dav_error *dav_repo_deliver(
+static dav_error *deliver_file(
     const dav_resource *resource,
     ap_filter_t *output
 ) {
-    // Deliver response body for GET requests.
+    // Download a file from iRODS to the WebDAV client.
 
     apr_pool_t         *pool = resource->pool;
     apr_bucket_brigade *bb;
     apr_bucket         *bkt;
-
-    if (resource->type != DAV_RESOURCE_TYPE_REGULAR
-        && resource->type != DAV_RESOURCE_TYPE_VERSION
-        && resource->type != DAV_RESOURCE_TYPE_WORKING) {
-        return dav_new_error(
-            pool, HTTP_CONFLICT, 0, 0,
-            "Cannot GET this type of resource."
-        );
-    }
-    if (resource->collection) {
-        // Note: We could generate a basic HTML directory listing here.
-        return dav_new_error(
-            pool, HTTP_METHOD_NOT_ALLOWED, 0, 0,
-            "There is no default response to GET for a collection."
-        );
-    }
 
     bb = apr_brigade_create(pool, output->c->bucket_alloc);
 
@@ -911,6 +897,8 @@ static dav_error *dav_repo_deliver(
             APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, resource->info->r,
             "Reading data object in %luK chunks", buffer_size / 1024
         );
+
+        // Read from iRODS, write to the client.
         do {
             bytes_read = rcDataObjRead(resource->info->rods_conn, &data_obj, &read_buffer);
 
@@ -968,14 +956,190 @@ static dav_error *dav_repo_deliver(
 
     if ((status = ap_pass_brigade(output, bb)) != APR_SUCCESS) {
         apr_brigade_destroy(bb);
-        return dav_new_error(
-            pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
-            "Could not write contents to filter."
-        );
+        return dav_new_error(pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
+                             "Could not write contents to filter.");
     }
     apr_brigade_destroy(bb);
 
     return NULL;
+}
+
+static dav_error *deliver_directory(
+    const dav_resource *resource,
+    ap_filter_t *output
+) {
+    // Print a basic HTML directory listing.
+    collInp_t coll_inp = {{ 0 }};
+    strcpy(coll_inp.collName, resource->info->rods_path);
+
+    collHandle_t coll_handle = { 0 };
+
+    // Open the collection.
+    collEnt_t    coll_entry;
+    int status = rclOpenCollection(
+        resource->info->rods_conn,
+        resource->info->rods_path,
+        LONG_METADATA_FG,
+        &coll_handle
+    );
+
+    if (status < 0) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
+                      "rcOpenCollection failed: %d = %s", status, get_rods_error_msg(status));
+
+        return dav_new_error(resource->pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
+                             "Could not open a collection");
+    }
+
+    // Make brigade.
+    apr_pool_t         *pool = resource->pool;
+    apr_bucket_brigade *bb = apr_brigade_create(pool, output->c->bucket_alloc);
+    apr_bucket         *bkt;
+
+    // Send start of HTML document.
+    apr_brigade_printf(bb, NULL, NULL, "<!DOCTYPE html>\n<html>\n<head><title>Index of %s on %s</title></head>\n",
+                       ap_escape_html(pool, resource->uri),
+                       ap_escape_html(pool, resource->info->conf->rods_zone));
+    apr_brigade_printf(bb, NULL, NULL,
+                     "<body>\n\n"
+                     "<!-- Warning: Do not parse this directory listing programmatically,\n"
+                     "              the format may change without notice!\n"
+                     "              If you want to script access to these WebDAV collections,\n"
+                     "              please use the PROPFIND method instead. -->\n\n"
+                     "<h1>Index of %s on %s</h1>\n",
+                     ap_escape_html(pool, resource->uri),
+                     ap_escape_html(pool, resource->info->conf->rods_zone));
+
+    if (strcmp(resource->uri, "/"))
+        apr_brigade_puts(bb, NULL, NULL, "<p><a href=\"..\">↖ Parent collection</a></p>\n");
+
+    apr_brigade_puts(bb, NULL, NULL,
+                     "<table>\n<thead>\n"
+                     "  <tr><th>Name</th><th>Size</th><th>Owner</th><th>Last modified</th></tr>\n"
+                     "</thead>\n<tbody>\n");
+
+    // Actually print the directory listing, one table row at a time.
+    do {
+        status = rclReadCollection(resource->info->rods_conn, &coll_handle, &coll_entry);
+
+        if (status < 0) {
+            if (status == CAT_NO_ROWS_FOUND) {
+                // End of collection.
+            } else {
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
+                              "rcReadCollection failed for collection <%s> with error <%s>",
+                              resource->info->rods_path, get_rods_error_msg(status));
+
+                apr_brigade_destroy(bb);
+
+                return dav_new_error(resource->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
+                                     "Could not read a collection entry from a collection.");
+            }
+        } else {
+            apr_brigade_puts(bb, NULL, NULL, "  <tr>");
+
+            const char *name = coll_entry.objType == DATA_OBJ_T
+                ? coll_entry.dataName
+                : get_basename(coll_entry.collName);
+
+            // Generate link.
+            if (coll_entry.objType == COLL_OBJ_T) {
+                // Collection links need a trailing slash for the '..' links to work correctly.
+                apr_brigade_printf(bb, NULL, NULL, "<td><a href=\"%s/\">%s/</a></td>",
+                                   ap_escape_html(pool, ap_escape_uri(pool, name)),
+                                   ap_escape_html(pool, name));
+            } else {
+                apr_brigade_printf(bb, NULL, NULL, "<td><a href=\"%s\">%s</a></td>",
+                                   ap_escape_html(pool, ap_escape_uri(pool, name)),
+                                   ap_escape_html(pool, name));
+            }
+
+            // Print data object size.
+            if (coll_entry.objType == DATA_OBJ_T) {
+                char size_buf[5] = { 0 };
+                // Fancy file size formatting.
+                apr_strfsize(coll_entry.dataSize, size_buf);
+                if (size_buf[0])
+                    apr_brigade_printf(bb, NULL, NULL, "<td>%s</td>", size_buf);
+                else
+                    apr_brigade_printf(bb, NULL, NULL, "<td>%lu</td>", coll_entry.dataSize);
+            } else {
+                apr_brigade_puts(bb, NULL, NULL, "<td></td>");
+            }
+
+            // Print owner.
+            apr_brigade_printf(bb, NULL, NULL, "<td>%s</td>",
+                               ap_escape_html(pool, coll_entry.ownerName));
+
+            // Print modified-date string.
+            uint64_t       timestamp    = atoll(coll_entry.modifyTime);
+            apr_time_t     apr_time     = 0;
+            apr_time_exp_t exploded     = { 0 };
+            char           date_str[64] = { 0 };
+
+            apr_time_ansi_put(&apr_time, timestamp);
+            apr_time_exp_lt(&exploded, apr_time);
+
+            size_t ret_size;
+            if (!apr_strftime(date_str, &ret_size, sizeof(date_str), "%Y-%m-%d %H:%M", &exploded)) {
+                apr_brigade_printf(bb, NULL, NULL, "<td>%s</td>",
+                                   ap_escape_html(pool, date_str));
+            } else {
+                // Fallback, just in case.
+                static_assert(sizeof(date_str) >= APR_RFC822_DATE_LEN,
+                              "Size of date_str buffer too low for RFC822 date");
+                int status = apr_rfc822_date(date_str, timestamp*1000*1000);
+                apr_brigade_printf(bb, NULL, NULL, "<td>%s</td>",
+                                   ap_escape_html(pool, status >= 0 ? date_str : "Thu, 01 Jan 1970 00:00:00 GMT"));
+            }
+
+            apr_brigade_puts(bb, NULL, NULL, "</tr>\n");
+        }
+    } while (status >= 0);
+
+    // End HTML document.
+    apr_brigade_puts(bb, NULL, NULL, "</tbody>\n</table>\n</body>\n</html>\n");
+
+    // Flush.
+    if ((status = ap_pass_brigade(output, bb)) != APR_SUCCESS) {
+        apr_brigade_destroy(bb);
+        return dav_new_error(pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
+                             "Could not write contents to filter.");
+    }
+
+    bkt = apr_bucket_eos_create(output->c->bucket_alloc);
+
+    APR_BRIGADE_INSERT_TAIL(bb, bkt);
+
+    if ((status = ap_pass_brigade(output, bb)) != APR_SUCCESS) {
+        apr_brigade_destroy(bb);
+        return dav_new_error(pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
+                             "Could not write content to filter.");
+    }
+    apr_brigade_destroy(bb);
+
+    return NULL;
+}
+
+static dav_error *dav_repo_deliver(
+    const dav_resource *resource,
+    ap_filter_t *output
+) {
+    // Deliver response body for GET requests.
+
+    if (resource->type != DAV_RESOURCE_TYPE_REGULAR
+        && resource->type != DAV_RESOURCE_TYPE_VERSION
+        && resource->type != DAV_RESOURCE_TYPE_WORKING) {
+        return dav_new_error(
+            resource->pool, HTTP_CONFLICT, 0, 0,
+            "Cannot GET this type of resource."
+        );
+    }
+
+    if (resource->collection)
+        return deliver_directory(resource, output);
+    else
+        return deliver_file(resource, output);
 }
 
 static dav_error *dav_repo_create_collection(dav_resource *resource) {
