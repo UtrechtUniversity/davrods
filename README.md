@@ -133,7 +133,7 @@ Note: Non-Redhat platforms may have a different convention for the
 location of the above file and the method for enabling/disabling
 modules, consult the respective documentation for details.
 
-Create a `irods` folder in a location where Apache HTTPD has read
+Create an `irods` folder in a location where Apache HTTPD has read
 access (e.g. `/etc/httpd/irods`). Place the provided
 `irods_environment.json` file in this directory. For most setups, this
 file can be used as is (but please read the __Configuration__ section).
@@ -144,9 +144,8 @@ example vhost config is provided for your convenience.
 
 ## Bugs and ToDos ##
 
-- The Davrods root cannot currently start in a sub-directory (that is,
-  `https://example.com/dav/` doesn't work, use
-  `https://(dav.)example.com/` instead).
+Please report any issues you encounter on the
+[issues page](https://github.com/UtrechtUniversity/davrods/issues).
 
 ## Author ##
 

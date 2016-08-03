@@ -129,7 +129,11 @@ static dav_error *dav_propdb_output_value(
                     *found = 1;
                 }
             } else if (strcmp(name->name, "getetag") == 0) {
-                // TODO.
+                const char *etag = davrods_hooks_repository.getetag(db->resource);
+                if (etag && strlen(etag)) {
+                    dav_append_prop(db->pool, "D:", name->name, etag, phdr);
+                    *found = 1;
+                }
             } else if (strcmp(name->name, "getlastmodified") == 0) {
                 uint64_t timestamp = atoll(db->resource->info->stat->modifyTime);
                 char date_str[APR_RFC822_DATE_LEN] = { 0 };
@@ -176,7 +180,11 @@ static dav_error *dav_propdb_output_value(
                 );
                 *found = 1;
             } else if (strcmp(name->name, "getetag") == 0) {
-                // TODO (?)
+                const char *etag = davrods_hooks_repository.getetag(db->resource);
+                if (etag && strlen(etag)) {
+                    dav_append_prop(db->pool, "D:", name->name, etag, phdr);
+                    *found = 1;
+                }
             } else if (strcmp(name->name, "getlastmodified") == 0) {
                 dav_append_prop(
                     db->pool,

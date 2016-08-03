@@ -52,7 +52,14 @@ struct dav_resource_private {
     // This is `MAX_NAME_LEN` as specified by iRODS.
     char rods_path[MAX_NAME_LEN]; // Currently 1024 + 64.
 
+    // relative_uri is resource->uri with the root_dir chopped off.
+    // i.e. with a Davrods in <Location /abc/def/>,
+    // resource->uri may be /abc/def/some_file.txt,
+    // while relative_uri will be just /some_file.txt.
+    const char *relative_uri;
+
     rodsObjStat_t *stat;
+    const char *root_dir;
 
     // }}}
 };
