@@ -106,6 +106,11 @@ installed (package names may differ on your platform):
 - `apr-devel`
 - `apr-util-devel`
 - `irods-dev`
+- `make`
+- `gcc`
+- `libstdc++-static`
+- `boost-devel`
+- `jansson-devel`
 
 Additionally, the following runtime dependencies must be installed:
 
