@@ -146,6 +146,11 @@ file can be used as is (but please read the __Configuration__ section).
 Finally, set up httpd to serve Davrods where you want it to. An
 example vhost config is provided for your convenience.
 
+If you are using the `davrods-locallock` dav provider (as in the
+provided vhost file), you will also need to create a directory at
+`/var/lib/davrods` and grant apache write access to this directory.
+This location will then be used to store the lock database.
+
 
 ## Bugs and ToDos ##
 
