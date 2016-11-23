@@ -34,14 +34,13 @@ SRCFILES := $(CFILES) $(HFILES)
 OUTFILES := $(CFILES:%.c=%.o) $(CFILES:%.c=%.lo) $(CFILES:%.c=%.slo) $(CFILES:%.c=%.la)
 
 # Most of these are iRODS client lib dependencies.
-LIBS :=                  \
+LIBS :=              \
 	dl               \
 	m                \
 	pthread          \
 	ssl              \
 	crypto           \
-	RodsAPIs         \
-	irods_client_plugins \
+	irods_client     \
 	stdc++           \
 	boost_system     \
 	boost_filesystem \
@@ -50,7 +49,20 @@ LIBS :=                  \
 	boost_chrono     \
 	jansson
 
-LIBPATHS :=
+# iRODS ships with its own version of (among others) boost. Since the version
+# used by iRODS is very likely to be binary-incompatible with whatever comes
+# with your Linux distro, we are required to link this specific version as
+# well.
+#
+# See also https://github.com/irods/irods/issues/3277
+
+LIBPATHS :=                                \
+	/opt/irods-externals/boost1.60.0-0/lib \
+	/opt/irods-externals/jansson2.7-0/lib
+
+INCPATHS :=                                    \
+	/opt/irods-externals/boost1.60.0-0/include \
+	/opt/irods-externals/jansson2.7-0/include
 
 WARNINGS :=                           \
 	all                           \
@@ -76,11 +88,13 @@ CFLAGS +=                              \
 	-std=c99                       \
 	-pedantic                      \
 	$(addprefix -W, $(WARNINGS))   \
-	$(addprefix -D, $(MACROS))
+	$(addprefix -D, $(MACROS))     \
+	$(addprefix -I, $(INCPATHS))
 
-LDFLAGS +=                           \
-	$(addprefix -l, $(LIBS))     \
-	$(addprefix -L, $(LIBPATHS))
+LDFLAGS +=                        \
+	$(addprefix -L, $(LIBPATHS))  \
+	$(addprefix -l, $(LIBS))      \
+	$(addprefix -R=, $(LIBPATHS))
 
 comma := ,
 
