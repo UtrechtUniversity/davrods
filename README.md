@@ -16,7 +16,28 @@ Notable features include:
 - Easy to configure using Apache configuration directives.
 - Supports iRODS server versions 4+ and is backwards compatible with 3.3.1.
 
+## Download ##
+
+There are currently two supported Davrods versions:
+
+- [`davrods-4.1_1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/1.1)
+  (formerly named `1.1`), branch `irods-4.1-libs`
+- [`davrods-4.2_1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1), branch `master`
+
+The left side of the version number indicates the version of the iRODS
+client libraries that Davrods uses.
+
+When installing Davrods on the same machine as an iRODS server, the
+version of Davrods must match the iRODS version. Otherwise, both Davrods
+versions listed above will work with either iRODS server version.
+
 ## Installation ##
+
+This section describes the installation steps for `davrods-4.1_1.1`.
+
+To view instructions for `davrods-4.2_1.1`, switch to the
+[master](https://github.com/UtrechtUniversity/davrods/tree/master)
+branch.
 
 ### Prerequisites ###
 
