@@ -16,29 +16,42 @@ Notable features include:
 - Easy to configure using Apache configuration directives.
 - Supports iRODS server versions 4+ and is backwards compatible with 3.3.1.
 
+## Download ##
+
+There are currently two supported Davrods versions:
+
+- [`davrods-4.1_1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/1.1)
+  (formerly named `1.1`), branch `irods-4.1-libs`
+- [`davrods-4.2_1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1), branch `master`
+
+The left side of the version number indicates the version of the iRODS
+client libraries that Davrods uses.
+
+When installing Davrods on the same machine as an iRODS server, the
+version of Davrods must match the iRODS version. Otherwise, both Davrods
+versions listed above will work with either iRODS server version.
+
 ## Installation ##
 
-### Prerequisites ###
+This section describes the installation steps for `davrods-4.2_1.1`.
 
-Davrods requires the following packages to be installed on your server:
-
-- Apache httpd 2.4+
-- iRODS 4.1.x client libraries (in package `irods-runtime`, available
-  from [the iRODS website](http://irods.org/download/))
-
-Due to the way iRODS libraries are packaged, specifically, its network
-plugins, one of the following packages must also be installed:
-
-- `irods-icommands` *OR* `irods-icat` *OR* `irods-resource`.
-
-These three packages all provide the necessary libraries in
-`/var/lib/irods/plugins/network`.
+To view instructions for `davrods-4.1_1.1`, switch to the
+[`irods-4.1-libs`](https://github.com/UtrechtUniversity/davrods/tree/irods-4.1-libs)
+branch.
 
 ### Using the binary distribution ###
 
-For binary installation, download the package for your platform at
-https://github.com/UtrechtUniversity/davrods/releases and install it
-using your package manager.
+Davrods depends on certain iRODS packages, which as of iRODS 4.2 are
+distributed at https://packages.irods.org/
+
+After following the instructions for adding the iRODS repository to your
+package manager at the link above, Davrods can be installed as a binary
+package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1 ).
+
+Download the Davrods package for your platform and install it using your
+package manager, for example:
+
+    yum install davrods-4.2_1.1-1.el7.centos.x86_64.rpm
 
 We currently distribute RPM packages for CentOS 7 only.
 If you require packaging for a different platform, please contact us
@@ -50,17 +63,14 @@ Davrods once it has been installed.
 ### Davrods and SELinux ##
 
 If the machine on which you install Davrods is protected by SELinux,
-you may need to make changes to your policies to allow davrods to run:
+you may need to make changes to your policies to allow Davrods to run:
 
 - Apache HTTPD must be allowed to connect to TCP port 1247
-- Davrods must be allowed to dynamically load iRODS client plugin
-  libraries in /var/lib/irods/plugins/network
 
-For example, the following two commands can be used to resolve these
-requirements:
+For example, the following command can be used to resolve this
+requirement:
 
     setsebool -P httpd_can_network_connect true
-    chcon -t lib_t /var/lib/irods/plugins/network/lib*.so
 
 ## Configuration ##
 
@@ -102,27 +112,26 @@ For instance, if you want Davrods to connect to iRODS 3.3.1, the
 To build from source, the following build-time dependencies must be
 installed (package names may differ on your platform):
 
+- `gcc`
+- `make`
+- `libstdc++-static`
 - `httpd-devel >= 2.4`
 - `apr-devel`
 - `apr-util-devel`
-- `irods-dev`
-- `make`
-- `gcc`
-- `libstdc++-static`
-- `boost-devel`
-- `jansson-devel`
+- `openssl-devel`
+- `irods-devel >= 4.2.0`
+- `irods-externals-boost1.60.0-0`
+- `irods-externals-jansson2.7-0`
+- `irods-runtime >= 4.2.0`
 
 Additionally, the following runtime dependencies must be installed:
 
+- `irods-runtime >= 4.2.0`
+- `openssl-libs`
+- `libstdc++`
 - `httpd >= 2.4`
-- `irods-runtime >= 4.1.8`
-- `jansson`
-- `boost`
-- `boost-system`
-- `boost-filesystem`
-- `boost-regex`
-- `boost-thread`
-- `boost-chrono`
+- `irods-externals-boost1.60.0-0`
+- `irods-externals-jansson2.7-0`
 
 First, browse to the directory where you have unpacked the Davrods
 source distribution.
@@ -150,7 +159,6 @@ If you are using the `davrods-locallock` dav provider (as in the
 provided vhost file), you will also need to create a directory at
 `/var/lib/davrods` and grant apache write access to this directory.
 This location will then be used to store the lock database.
-
 
 ## Bugs and ToDos ##
 
