@@ -20,9 +20,8 @@ Notable features include:
 
 There are currently two supported Davrods versions:
 
-- [`davrods-4.1_1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/1.1)
-  (formerly named `1.1`), branch `irods-4.1-libs`
-- [`davrods-4.2_1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1), branch `master`
+- [`davrods-4.1_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.1.1), branch `irods-4.1-libs`
+- [`davrods-4.2_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1.1), branch `master`
 
 The left side of the version number indicates the version of the iRODS
 client libraries that Davrods uses.
@@ -46,12 +45,12 @@ distributed at https://packages.irods.org/
 
 After following the instructions for adding the iRODS repository to your
 package manager at the link above, Davrods can be installed as a binary
-package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1 ).
+package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1.1).
 
 Download the Davrods package for your platform and install it using your
 package manager, for example:
 
-    yum install davrods-4.2_1.1-1.el7.centos.x86_64.rpm
+    yum install davrods-4.2_1.1.1-1.el7.centos.x86_64.rpm
 
 We currently distribute RPM packages for CentOS 7 only.
 If you require packaging for a different platform, please contact us
