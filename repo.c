@@ -1025,10 +1025,30 @@ static dav_error *deliver_directory(
     apr_bucket_brigade *bb = apr_brigade_create(pool, output->c->bucket_alloc);
     apr_bucket         *bkt;
 
+    // Collection URIs must end with a slash to make relative links work.
+    // Normally, web servers redirect clients to `path + '/'` if it's missing,
+    // but mod_dav does not expect us to return a redirect status code (it
+    // works, but results in mod_dav error messages).
+    //
+    // As an alternative solution, we supply a HTML <base> tag containing the
+    // correct collection path (with appended '/' if necessary). This is then
+    // used by the browser as a base URI for all relative links.
+    //
+    bool uri_ends_with_slash = false;
+    { size_t uri_length = strlen(resource->info->relative_uri);
+      if (uri_length && resource->info->relative_uri[uri_length-1] == '/')
+          uri_ends_with_slash = true; }
+
     // Send start of HTML document.
-    apr_brigade_printf(bb, NULL, NULL, "<!DOCTYPE html>\n<html>\n<head><title>Index of %s on %s</title></head>\n",
+    apr_brigade_printf(bb, NULL, NULL,
+                       "<!DOCTYPE html>\n<html>\n<head>\n"
+                       "<title>Index of %s on %s</title>\n"
+                       "<base href=\"%s%s\">\n"
+                       "</head>\n",
                        ap_escape_html(pool, resource->info->relative_uri),
-                       ap_escape_html(pool, resource->info->conf->rods_zone));
+                       ap_escape_html(pool, resource->info->conf->rods_zone),
+                       ap_escape_html(pool, ap_escape_uri(pool, resource->info->relative_uri)),
+                       uri_ends_with_slash ? "" : "/"); // Append a slash to fix relative links on this page.
     apr_brigade_printf(bb, NULL, NULL,
                      "<body>\n\n"
                      "<!-- Warning: Do not parse this directory listing programmatically,\n"
