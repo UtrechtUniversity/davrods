@@ -1,0 +1,2 @@
+The davrods httpd module provides a DAV level 2 compliant interface to iRODS in
+the form of a mod_dav plugin.

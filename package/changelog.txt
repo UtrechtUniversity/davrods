@@ -1,0 +1,43 @@
+* Tue Jul 19 2017 Chris Smeele <c.j.smeele@uu.nl> - 4.2.1_1.1.1-1
+- Changed build system to CMake
+- Now supports iRODS 4.2.1 client libraries
+
+* Tue Jul 18 2017 Chris Smeele <c.j.smeele@uu.nl> - 4.2_1.1.1-2
+- Fixed RPM dependencies. Now requires exact version irods-runtime 4.2.0.
+
+* Mon Feb 27 2017 Chris Smeele <c.j.smeele@uu.nl> - 4.2_1.1.1
+- Directory listing links now work when current URI does not end with a slash.
+
+* Mon Dec 19 2016 Chris Smeele <c.j.smeele@uu.nl> - 4.2_1.1.0
+- Updated for iRODS 4.2 compatibility.
+
+* Wed Aug 3 2016 Chris Smeele <c.j.smeele@uu.nl> - 1.1.0
+- An Etag header is now emitted for data objects on GET, HEAD and PROPFIND
+- Basic HTML directory listings are generated in response to GET requests on
+  collections, allowing web browser access.
+- Support for partial uploads was added (using the Range request header)
+- Davrods no longer requires being setup in a vhost's root path '/',
+  you can now choose an arbitrary path for your Davrods <Location> block
+
+* Wed Jun 29 2016 Chris Smeele <c.j.smeele@uu.nl> - 1.0.1
+- Fixed a COPY method issue regarding filename length
+
+* Tue Jun 28 2016 Chris Smeele <c.j.smeele@uu.nl> - 1.0.0
+- Initial public version
+
+* Tue Jun 28 2016 Chris Smeele <c.j.smeele@uu.nl> - 0.9.5
+- Fixed SSL shutdown bug
+- Improved source documentation and code formatting
+
+* Mon Jun 20 2016 Chris Smeele <c.j.smeele@uu.nl> - 0.9.4
+- Fully support iRODS 4.x SSL negotiation, while maintaining SSL compatibility
+  with 3.1+
+
+* Fri May 13 2016 Chris Smeele <c.j.smeele@uu.nl> - 0.9.3
+- Fixed a memory leak in GET file delivery
+
+* Fri May 6 2016 Chris Smeele <c.j.smeele@uu.nl> - 0.9.2
+- Change compiler flags to work with older GCC versions
+
+* Mon Mar 28 2016 Chris Smeele <c.j.smeele@uu.nl> - 0.9.0
+- Initial build
