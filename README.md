@@ -20,9 +20,8 @@ Notable features include:
 
 There are currently two supported Davrods versions:
 
-- [`davrods-4.1_1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/1.1)
-  (formerly named `1.1`), branch `irods-4.1-libs`
-- [`davrods-4.2_1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1), branch `master`
+- [`davrods-4.1_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.1.1), branch `irods-4.1-libs`
+- [`davrods-4.2_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1.1), branch `master`
 
 The left side of the version number indicates the version of the iRODS
 client libraries that Davrods uses.
@@ -46,12 +45,12 @@ distributed at https://packages.irods.org/
 
 After following the instructions for adding the iRODS repository to your
 package manager at the link above, Davrods can be installed as a binary
-package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1 ).
+package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1.1).
 
 Download the Davrods package for your platform and install it using your
 package manager, for example:
 
-    yum install davrods-4.2_1.1-1.el7.centos.x86_64.rpm
+    yum install davrods-4.2_1.1.1-1.el7.centos.x86_64.rpm
 
 We currently distribute RPM packages for CentOS 7 only.
 If you require packaging for a different platform, please contact us
@@ -112,53 +111,81 @@ For instance, if you want Davrods to connect to iRODS 3.3.1, the
 To build from source, the following build-time dependencies must be
 installed (package names may differ on your platform):
 
-- `gcc`
+- `cmake`
 - `make`
-- `libstdc++-static`
+- `gcc`
 - `httpd-devel >= 2.4`
-- `apr-devel`
-- `apr-util-devel`
-- `openssl-devel`
 - `irods-devel >= 4.2.0`
-- `irods-externals-boost1.60.0-0`
-- `irods-externals-jansson2.7-0`
+- `openssl-devel`
 - `irods-runtime >= 4.2.0`
+- `rpmdevtools` (if you are creating an RPM)
 
 Additionally, the following runtime dependencies must be installed:
 
 - `irods-runtime >= 4.2.0`
 - `openssl-libs`
-- `libstdc++`
 - `httpd >= 2.4`
-- `irods-externals-boost1.60.0-0`
-- `irods-externals-jansson2.7-0`
 
-First, browse to the directory where you have unpacked the Davrods
-source distribution.
+Follow these instructions to build from source:
 
-Running `make` without parameters will generate the Davrods module .so
-file in the `.libs` directory. `make install` will install the module
-into Apache's modules directory.
+- First, browse to the directory where you have unpacked the Davrods
+  source distribution.
 
-After installing the module, copy the `davrods.conf` file to
-`/etc/httpd/conf.modules.d/01-davrods.conf`.
+- Check whether your umask is set to a sane value. If the output of
+  `umask` is not `0022`, run `umask 0022` to fix it. This is important
+  for avoiding conflicts in created packages later on.
 
-Note: Non-Redhat platforms may have a different convention for the
-location of the above file and the method for enabling/disabling
-modules, consult the respective documentation for details.
+- Create and generate a build directory.
 
-Create an `irods` folder in a location where Apache HTTPD has read
-access (e.g. `/etc/httpd/irods`). Place the provided
-`irods_environment.json` file in this directory. For most setups, this
-file can be used as is (but please read the __Configuration__ section).
+```bash
+mkdir build
+cd build
+cmake ..
+```
 
-Finally, set up httpd to serve Davrods where you want it to. An
-example vhost config is provided for your convenience.
+- Compile the project
 
-If you are using the `davrods-locallock` dav provider (as in the
-provided vhost file), you will also need to create a directory at
-`/var/lib/davrods` and grant apache write access to this directory.
-This location will then be used to store the lock database.
+```bash
+make
+```
+
+Now you can either build an RPM or install the project without a package
+manager. Packaging for Linux distributions other than CentOS-likes is
+not yet supported.
+
+**To create a package:**
+
+```
+make package
+```
+
+That's it, you should now have an RPM in your build directory which you
+can install using yum.
+
+**To install without a package manager on CentOS:**
+
+Run the following as user root:
+
+```
+make install
+chown apache:apache /var/lib/davrods
+chmod 700 /var/lib/davrods
+```
+
+**To install without a package manager on other distros:**
+
+Distributions other than CentOS (e.g. Ubuntu) have different HTTPD
+configuration layouts, which are not yet supported by the build system.
+For this reason you will need to install the files manually:
+
+- Copy `mod_davrods.so` to your Apache module directory.
+- Copy `davrods.conf` to your Apache module configuration/load directory.
+- Copy `davrods-vhost.conf` to your Apache vhost configuration directory.
+- Create an `irods` directory in a location where Apache HTTPD has read
+  access.
+- Copy `irods_environment.json` to the `irods` directory.
+- Create directory `/var/lib/davrods`, and give apache exclusive access
+  to it: `chown apache:apache /var/lib/davrods; chmod 700 /var/lib/davrods`
 
 ## Bugs and ToDos ##
 
@@ -178,7 +205,7 @@ page.
 
 ## License ##
 
-Copyright (c) 2016, Utrecht University.
+Copyright (c) 2016, 2017, Utrecht University.
 
 Davrods is licensed under the GNU Lesser General Public License version
 3 or higher (LGPLv3+). See the COPYING.LESSER file for details.

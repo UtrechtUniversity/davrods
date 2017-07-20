@@ -41,7 +41,7 @@ APLOG_USE_MODULE(davrods);
 
 // Common utility functions {{{
 
-char *get_rods_error_msg(int rods_error_code) {
+const char *get_rods_error_msg(int rods_error_code) {
     char *submsg = NULL;
     return rodsErrorName(rods_error_code, &submsg);
 }
