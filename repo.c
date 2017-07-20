@@ -1881,7 +1881,7 @@ static request_rec *dav_repo_get_request_rec(const dav_resource *resource) {
     return resource->info->r;
 }
 
-const char *dav_repo_pathname(const dav_resource *resource) {
+static const char *dav_repo_pathname(const dav_resource *resource) {
     // XXX: This function is never called by mod_dav. Apparently it is only
     // used within mod_dav_fs (unrelated to this module), so there is no
     // pressing need to implement it.

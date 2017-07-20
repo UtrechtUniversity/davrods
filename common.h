@@ -38,7 +38,7 @@
  *
  * \return an error description provided by iRODS
  */
-char *get_rods_error_msg(int rods_error_code);
+const char *get_rods_error_msg(int rods_error_code);
 
 /**
  * \brief Extract the davrods pool from a request, as set by the rods_auth component.
