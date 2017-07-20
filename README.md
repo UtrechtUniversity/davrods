@@ -21,7 +21,7 @@ Notable features include:
 There are currently two supported Davrods versions:
 
 - [`davrods-4.1_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.1.1), branch `irods-4.1-libs`
-- [`davrods-4.2_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1.1), branch `master`
+- [`davrods-4.2.1_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.1.1), branch `master`
 
 The left side of the version number indicates the version of the iRODS
 client libraries that Davrods uses.
@@ -32,9 +32,9 @@ versions listed above will work with either iRODS server version.
 
 ## Installation ##
 
-This section describes the installation steps for `davrods-4.2_1.1`.
+This section describes the installation steps for `davrods-4.2.1_1.1.1`.
 
-To view instructions for `davrods-4.1_1.1`, switch to the
+To view instructions for `davrods-4.1_1.1.1`, switch to the
 [`irods-4.1-libs`](https://github.com/UtrechtUniversity/davrods/tree/irods-4.1-libs)
 branch.
 
@@ -45,12 +45,12 @@ distributed at https://packages.irods.org/
 
 After following the instructions for adding the iRODS repository to your
 package manager at the link above, Davrods can be installed as a binary
-package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1.1).
+package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.1.1).
 
 Download the Davrods package for your platform and install it using your
 package manager, for example:
 
-    yum install davrods-4.2_1.1.1-1.el7.centos.x86_64.rpm
+    yum install davrods-4.2.1_1.1.1-1.rpm
 
 We currently distribute RPM packages for CentOS 7 only.
 If you require packaging for a different platform, please contact us
@@ -101,7 +101,7 @@ directives in the vhost file instead.
 The options in the provided environment file starting from
 `irods_client_server_negotiation` *do* affect the behaviour of
 Davrods. See the official documentation for help on these settings at:
-https://docs.irods.org/master/manual/configuration/#irodsirods_environmentjson
+https://docs.irods.org/4.2.1/system_overview/configuration/#irodsirods_environmentjson
 
 For instance, if you want Davrods to connect to iRODS 3.3.1, the
 `irods_client_server_negotiation` option must be set to `"none"`.
@@ -192,9 +192,9 @@ For this reason you will need to install the files manually:
 Please report any issues you encounter on the
 [issues page](https://github.com/UtrechtUniversity/davrods/issues).
 
-## Author ##
+## Authors ##
 
-[Chris Smeele](https://github.com/cjsmeele)
+- [Chris Smeele](https://github.com/cjsmeele)
 
 ## Contact information ##
 
