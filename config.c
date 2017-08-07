@@ -53,25 +53,33 @@ void *davrods_create_dir_config(apr_pool_t *p, char *dir) {
         conf->rods_default_resource  = "";
         conf->rods_env_file          = "/etc/httpd/irods/irods_environment.json";
         conf->rods_auth_scheme       = DAVRODS_AUTH_NATIVE;
+
         // Default to having the user's home directory as the exposed root
         // because that collection is more or less guaranteed to be readable by
         // the current user (as opposed to the /<zone>/home directory, which
-        // seems to be hidden for rodsusers by default).
+        // is hidden for rodsusers by default).
         conf->rods_exposed_root      = "User"; // NOTE: Keep this in sync with the option below.
         conf->rods_exposed_root_type = DAVRODS_ROOT_USER_DIR;
 
+        // Default to 4 MiB buffer sizes, which is a good balance
+        // between resource usage and transfer performance in common
+        // setups.
         conf->rods_tx_buffer_size    = 4 * 1024 * 1024;
         conf->rods_rx_buffer_size    = 4 * 1024 * 1024;
 
-        conf->tmpfile_rollback       = DAVRODS_TMPFILE_ROLLBACK_NO;
+        conf->tmpfile_rollback       = DAVRODS_TMPFILE_ROLLBACK_OFF;
         conf->locallock_lockdb_path  = "/var/lib/davrods/lockdb_locallock";
+
+        conf->anonymous_mode          = DAVRODS_ANONYMOUS_MODE_OFF;
+        conf->anonymous_auth_username = "anonymous";
+        conf->anonymous_auth_password = "";
 
         // Use the minimum PAM temporary password TTL. We
         // re-authenticate using PAM on every new HTTP connection, so
         // there's no use keeping the temporary password around for
         // longer than the maximum keepalive time. (We don't ever use
         // a temporary password more than once).
-        conf->rods_auth_ttl          = 1; // In hours.
+        conf->rods_auth_ttl = 1; // In hours.
     }
     return conf;
 }
@@ -106,6 +114,10 @@ void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
 
     DAVRODS_PROP_MERGE(tmpfile_rollback);
     DAVRODS_PROP_MERGE(locallock_lockdb_path);
+
+    DAVRODS_PROP_MERGE(anonymous_mode);
+    DAVRODS_PROP_MERGE(anonymous_auth_username);
+    DAVRODS_PROP_MERGE(anonymous_auth_password);
 
     assert(set_exposed_root(conf, exposed_root) >= 0);
 
@@ -258,12 +270,12 @@ static const char *cmd_davrodstmpfilerollback(
 ) {
     davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
 
-    if (!strcasecmp(arg1, "yes")) {
-        conf->tmpfile_rollback = DAVRODS_TMPFILE_ROLLBACK_YES;
-    } else if (!strcasecmp(arg1, "no")) {
-        conf->tmpfile_rollback = DAVRODS_TMPFILE_ROLLBACK_NO;
+    if (!strcasecmp(arg1, "on") || !strcasecmp(arg1, "yes")) {
+        conf->tmpfile_rollback = DAVRODS_TMPFILE_ROLLBACK_ON;
+    } else if (!strcasecmp(arg1, "off") || !strcasecmp(arg1, "no")) {
+        conf->tmpfile_rollback = DAVRODS_TMPFILE_ROLLBACK_OFF;
     } else {
-        return "This directive accepts only 'Yes' and 'No' values";
+        return "This directive accepts only 'On' and 'Off' values";
     }
 
     return NULL;
@@ -276,6 +288,45 @@ static const char *cmd_davrodslockdb(
     davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
 
     conf->locallock_lockdb_path = arg1;
+
+    return NULL;
+}
+
+static const char *cmd_davrodsanonymousmode(
+    cmd_parms *cmd, void *config,
+    const char *arg1
+) {
+    davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
+
+    if (!strcasecmp(arg1, "on")) {
+        conf->anonymous_mode = DAVRODS_ANONYMOUS_MODE_ON;
+    } else if (!strcasecmp(arg1, "off")) {
+        conf->anonymous_mode = DAVRODS_ANONYMOUS_MODE_OFF;
+    } else {
+        return "This directive accepts only 'On' and 'Off' values";
+    }
+
+    return NULL;
+}
+
+static const char *cmd_davrodsanonymouslogin(
+    cmd_parms *cmd, void *config,
+    int argc, char * const *argv
+) {
+    davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
+
+    if (argc < 1 || argc > 2)
+        return "Specify a username and optionally a password";
+
+    if (!strlen(argv[0]))
+        return "Username must not be empty";
+
+    conf->anonymous_auth_username = argv[0];
+
+    if (argc == 2)
+        conf->anonymous_auth_password = argv[1];
+    else
+        conf->anonymous_auth_password = "";
 
     return NULL;
 }
@@ -326,6 +377,14 @@ const command_rec davrods_directives[] = {
     AP_INIT_TAKE1(
         DAVRODS_CONFIG_PREFIX "LockDB", cmd_davrodslockdb,
         NULL, ACCESS_CONF, "Lock database location, used by the davrods-locallock DAV provider"
+    ),
+    AP_INIT_TAKE1(
+        DAVRODS_CONFIG_PREFIX "AnonymousMode", cmd_davrodsanonymousmode,
+        NULL, ACCESS_CONF, "Anonymous mode On/Off switch"
+    ),
+    AP_INIT_TAKE_ARGV(
+        DAVRODS_CONFIG_PREFIX "AnonymousLogin", cmd_davrodsanonymouslogin,
+        NULL, ACCESS_CONF, "Anonymous mode auth method, username and optional password"
     ),
 
     { NULL }

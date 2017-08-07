@@ -4,7 +4,7 @@ project(davrods C)
 
 set(IRODS_VERSION "4.2.1" CACHE STRING "iRODS client library version")
 
-set(DAVRODS_VERSION "${IRODS_VERSION}_1.1.1")
+set(DAVRODS_VERSION "${IRODS_VERSION}_1.2.0")
 
 find_program(APXS apxs DOC "Apache/HTTPD extension tool location")
 if(NOT APXS)
@@ -88,6 +88,7 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
             RENAME      10-davrods.conf)
 
     install(FILES       davrods-vhost.conf
+                        davrods-anonymous-vhost.conf
             DESTINATION /etc/httpd/conf.d/)
 
     install(FILES       irods_environment.json
@@ -132,6 +133,7 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/COPYING.LESSER"
         "%config(noreplace) /etc/httpd/conf.modules.d/10-davrods.conf"
         "%config(noreplace) /etc/httpd/conf.d/davrods-vhost.conf"
+        "%config(noreplace) /etc/httpd/conf.d/davrods-anonymous-vhost.conf"
         "%config(noreplace) /etc/httpd/irods/irods_environment.json"
         "%attr(700,apache,apache) /var/lib/davrods")
 
