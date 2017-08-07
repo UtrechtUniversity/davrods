@@ -23,6 +23,9 @@
 #define _RODS_AUTH_H
 
 #include "mod_davrods.h"
+#include <mod_auth.h>
+
+authn_status check_rods(request_rec *r, const char *username, const char *password);
 
 void davrods_auth_register(apr_pool_t *p);
 

@@ -46,21 +46,6 @@ char *get_rods_error_msg(int rods_error_code) {
     return rodsErrorName(rods_error_code, &submsg);
 }
 
-/**
- * \brief Extract the davrods pool from a request, as set by the rods_auth component.
- *
- * \param r an apache request record.
- *
- * \return the davrods memory pool
- */
-apr_pool_t *get_davrods_pool_from_req(request_rec *r) {
-    // TODO: Remove function, move apr call to the single caller.
-    apr_pool_t *pool = NULL;
-    int status = apr_pool_userdata_get((void**)&pool, "davrods_pool", r->connection->pool);
-    assert(status == 0);
-    return pool;
-}
-
 // }}}
 // DAV provider definition and registration {{{
 

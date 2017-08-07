@@ -14,14 +14,15 @@ Notable features include:
 - Supports PAM and Native (a.k.a. STANDARD) iRODS authentication.
 - Supports SSL encryption for the entire iRODS connection.
 - Easy to configure using Apache configuration directives.
+- Supports an anonymous access mode for password-less public access.
 - Supports iRODS server versions 4+ and is backwards compatible with 3.3.1.
 
 ## Download ##
 
 There are currently two supported Davrods versions:
 
-- [`davrods-4.1_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.1.1), branch `irods-4.1-libs`
-- [`davrods-4.2_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2_1.1.1), branch `master`
+- [`davrods-4.1_1.2.0`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.2.0), branch `irods-4.1-libs`
+- [`davrods-4.2.1_1.2.0`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.2.0), branch `master`
 
 The left side of the version number indicates the version of the iRODS
 client libraries that Davrods uses.
@@ -32,9 +33,9 @@ versions listed above will work with either iRODS server version.
 
 ## Installation ##
 
-This section describes the installation steps for `davrods-4.1_1.1`.
+This section describes the installation steps for `davrods-4.1_1.2.0`.
 
-To view instructions for `davrods-4.2_1.1`, switch to the
+To view instructions for `davrods-4.2_1.2.0`, switch to the
 [master](https://github.com/UtrechtUniversity/davrods/tree/master)
 branch.
 
@@ -46,8 +47,8 @@ Davrods requires the following packages to be installed on your server:
 - iRODS 4.1.x client libraries (in package `irods-runtime`, available
   from [the iRODS website](http://irods.org/download/))
 
-Due to the way iRODS libraries are packaged, specifically, its network
-plugins, one of the following packages must also be installed:
+Due to the way iRODS 4.1 libraries are packaged, specifically, its
+network plugins, one of the following packages must also be installed:
 
 - `irods-icommands` *OR* `irods-icat` *OR* `irods-resource`.
 
@@ -92,11 +93,25 @@ icommands.
 
 ### HTTPD vhost configuration ###
 
-The Davrods RPM distribution installs a commented out vhost template
-in `/etc/httpd/conf.d/davrods-vhost.conf`. With the comment marks
-(`#`) removed, this provides you with a sane default configuration
-that you can tune to your needs. All Davrods configuration options are
-documented in this file and can be changed to your liking.
+The Davrods RPM distribution installs two vhost template files:
+
+1. `/etc/httpd/conf.d/davrods-vhost.conf`
+2. `/etc/httpd/conf.d/davrods-anonymous-vhost.conf`
+
+These files are provided completely commented out. To enable either
+configuration, simply remove the first column of `#` signs, and then
+tune the settings to your needs.
+
+The normal vhost configuration (1) provides sane defaults for
+authenticated access.
+
+The anonymous vhost configuration (2) allows password-less public
+access using the `anonymous` iRODS account.
+
+You can enable both configurations simultaneously, as long as their
+ServerName values are unique (for example, you might use
+`dav.example.com` for authenticated access and
+`public.dav.example.com` for anonymous access).
 
 ### The iRODS environment file ###
 
@@ -163,14 +178,13 @@ access (e.g. `/etc/httpd/irods`). Place the provided
 `irods_environment.json` file in this directory. For most setups, this
 file can be used as is (but please read the __Configuration__ section).
 
-Finally, set up httpd to serve Davrods where you want it to. An
-example vhost config is provided for your convenience.
+Finally, set up httpd to serve Davrods where you want it to. Two
+example vhost config are provided for your convenience.
 
 If you are using the `davrods-locallock` dav provider (as in the
-provided vhost file), you will also need to create a directory at
+provided vhost files), you will also need to create a directory at
 `/var/lib/davrods` and grant apache write access to this directory.
 This location will then be used to store the lock database.
-
 
 ## Bugs and ToDos ##
 
@@ -190,7 +204,7 @@ page.
 
 ## License ##
 
-Copyright (c) 2016, Utrecht University.
+Copyright (c) 2016, 2017 Utrecht University.
 
 Davrods is licensed under the GNU Lesser General Public License version
 3 or higher (LGPLv3+). See the COPYING.LESSER file for details.
