@@ -33,7 +33,7 @@ versions listed above will work with either iRODS server version.
 
 ## Installation ##
 
-This section describes the installation steps for `davrods-4.2.1_1.1.1`.
+This section describes the installation steps for `davrods-4.2.1_1.2.0`.
 
 To view instructions for `davrods-4.1_1.2.0`, switch to the
 [`irods-4.1-libs`](https://github.com/UtrechtUniversity/davrods/tree/irods-4.1-libs)
@@ -46,12 +46,12 @@ distributed at https://packages.irods.org/
 
 After following the instructions for adding the iRODS repository to your
 package manager at the link above, Davrods can be installed as a binary
-package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.1.1).
+package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.2.0).
 
 Download the Davrods package for your platform and install it using your
 package manager, for example:
 
-    yum install davrods-4.2.1_1.1.1-1.rpm
+    yum install davrods-4.2.1_1.2.0-1.rpm
 
 We currently distribute RPM packages for CentOS 7 only.
 If you require packaging for a different platform, please contact us
