@@ -40,15 +40,6 @@
  */
 const char *get_rods_error_msg(int rods_error_code);
 
-/**
- * \brief Extract the davrods pool from a request, as set by the rods_auth component.
- *
- * \param r an apache request record.
- *
- * \return the davrods memory pool
- */
-apr_pool_t *get_davrods_pool_from_req(request_rec *r);
-
 void davrods_dav_register(apr_pool_t *p);
 
 #endif /* _DAVRODS_COMMON_H_ */

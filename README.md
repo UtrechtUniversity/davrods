@@ -14,6 +14,7 @@ Notable features include:
 - Supports PAM and Native (a.k.a. STANDARD) iRODS authentication.
 - Supports SSL encryption for the entire iRODS connection.
 - Easy to configure using Apache configuration directives.
+- Supports an anonymous access mode for password-less public access.
 - Supports iRODS server versions 4+ and is backwards compatible with 3.3.1.
 
 ## Download ##
@@ -21,7 +22,7 @@ Notable features include:
 There are currently two supported Davrods versions:
 
 - [`davrods-4.1_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.1.1), branch `irods-4.1-libs`
-- [`davrods-4.2.1_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.1.1), branch `master`
+- [`davrods-4.2.1_1.2.0`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.2.0), branch `master`
 
 The left side of the version number indicates the version of the iRODS
 client libraries that Davrods uses.
@@ -81,11 +82,25 @@ icommands.
 
 ### HTTPD vhost configuration ###
 
-The Davrods RPM distribution installs a commented out vhost template
-in `/etc/httpd/conf.d/davrods-vhost.conf`. With the comment marks
-(`#`) removed, this provides you with a sane default configuration
-that you can tune to your needs. All Davrods configuration options are
-documented in this file and can be changed to your liking.
+The Davrods RPM distribution installs two vhost template files:
+
+1. `/etc/httpd/conf.d/davrods-vhost.conf`
+2. `/etc/httpd/conf.d/davrods-anonymous-vhost.conf`
+
+These files are provided completely commented out. To enable either
+configuration, simply remove the first column of `#` signs, and then
+tune the settings to your needs.
+
+The normal vhost configuration (1) provides sane defaults for
+authenticated access.
+
+The anonymous vhost configuration (2) allows password-less public
+access using the `anonymous` iRODS account.
+
+You can enable both configurations simultaneously, as long as their
+ServerName values are unique (for example, you might use
+`dav.example.com` for authenticated access and
+`public.dav.example.com` for anonymous access).
 
 ### The iRODS environment file ###
 
@@ -180,7 +195,8 @@ For this reason you will need to install the files manually:
 
 - Copy `mod_davrods.so` to your Apache module directory.
 - Copy `davrods.conf` to your Apache module configuration/load directory.
-- Copy `davrods-vhost.conf` to your Apache vhost configuration directory.
+- Copy `davrods-vhost.conf` and `davrods-anonymous-vhost.conf` to your
+  Apache vhost configuration directory.
 - Create an `irods` directory in a location where Apache HTTPD has read
   access.
 - Copy `irods_environment.json` to the `irods` directory.
