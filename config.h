@@ -39,8 +39,8 @@ typedef struct {
 
     enum {
         // Need to have something other than a bool to recognize an 'unset' state.
-        DAVRODS_TMPFILE_ROLLBACK_YES = 1,
-        DAVRODS_TMPFILE_ROLLBACK_NO,
+        DAVRODS_TMPFILE_ROLLBACK_OFF = 1,
+        DAVRODS_TMPFILE_ROLLBACK_ON,
     } tmpfile_rollback;
 
     const char *locallock_lockdb_path;
@@ -50,6 +50,14 @@ typedef struct {
         DAVRODS_AUTH_PAM,
     } rods_auth_scheme;
 
+    enum {
+        DAVRODS_ANONYMOUS_MODE_OFF = 1,
+        DAVRODS_ANONYMOUS_MODE_ON,
+    } anonymous_mode;
+
+    const char *anonymous_auth_username;
+    const char *anonymous_auth_password;
+
     int rods_auth_ttl; // In hours.
 
     enum {
@@ -58,7 +66,7 @@ typedef struct {
         DAVRODS_ROOT_CUSTOM_DIR = 1, //             <path>           => <path>
         DAVRODS_ROOT_ZONE_DIR,       //             Zone             => /<zone>
         DAVRODS_ROOT_HOME_DIR,       //             Home             => /<zone>/home (not the user's home collection!)
-        DAVRODS_ROOT_USER_DIR,       //             User             => /<zone>/home/<user>
+        DAVRODS_ROOT_USER_DIR,       //             User             => /<zone>/home/<username>
     } rods_exposed_root_type;
 
 } davrods_dir_conf_t;

@@ -20,6 +20,7 @@
  * along with Davrods.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "repo.h"
+#include "auth.h" // For anonymous access.
 
 #include <http_request.h>
 #include <http_protocol.h>
@@ -56,6 +57,71 @@ static const char *get_basename(const char *path) {
     return path;
 }
 
+/**
+ * \brief Obtain the fully inited Davrods memory pool.
+ *
+ * If Davrods is running with HTTP Basic auth enabled, then the pool
+ * and the iRODS connection are set up by auth.c before we ever enter
+ * repo.c. We can then simply return the pool from the request.
+ *
+ * Otherwise, if Basic auth is disabled, then the first time this
+ * function is entered in a HTTP connection, the pool and iRODS
+ * connection do not yet exist. If in that case AnonymousMode is
+ * turned on, we will set up the pool and authenticate to iRODS as the
+ * configured anonymous user.
+ *
+ * It is a configuration error if neither basic auth nor anonymous
+ * mode is enabled.
+ *
+ * \param[in]  r    an apache request record.
+ * \param[out] pool the fully inited davrods memory pool.
+ *
+ * \return NULL if succesful, otherwise a dav error.
+ */
+static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
+
+    *pool = NULL;
+    int status = apr_pool_userdata_get((void**)pool, "davrods_pool", r->connection->pool);
+    if (status == 0 && *pool) {
+        // OK!
+        return NULL;
+
+    } else {
+        // Not authenticated yet.
+        davrods_dir_conf_t *conf = ap_get_module_config(
+            r->per_dir_config,
+            &davrods_module
+        );
+        assert(conf);
+
+        if (conf->anonymous_mode == DAVRODS_ANONYMOUS_MODE_ON) {
+
+            authn_status result = check_rods(r, conf->anonymous_auth_username, conf->anonymous_auth_password);
+
+            if (result == AUTH_GRANTED) {
+                int status = apr_pool_userdata_get((void**)pool, "davrods_pool", r->connection->pool);
+                assert(status == 0 && *pool); // Logic error - pool must have been set by auth module.
+                return NULL;
+            } else {
+                // 401 and 403 are not appropriate for this error - it
+                // is a configuration issue, not something that can
+                // be resolved by the user.
+                return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
+                                     "Anonymous mode is enabled but Davrods couldn't log in "
+                                     "with the configured anonymous credentials (option DavRodsAnonymousLogin) "
+                                     "and the configured auth scheme (option DavRodsAuthScheme).");
+            }
+        } else {
+            // No basic auth and no anonymous mode. What do you expect us to do?
+            return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
+                                "iRODS connection could not be set up due to a configuration error: "
+                                 "Either enable anonymous access mode (DavRodsAnonymousMode On) "
+                                 "or enable Davrods' basic auth provider (Require valid-user, AuthType Basic, AuthBasicProvider irods).");
+        }
+    }
+}
+
+// Used by the dav_repo_walk function for e.g. recursive copy and move.
 struct dav_repo_walker_private {
     const dav_walk_params *params;
     dav_walk_resource wres;
@@ -63,6 +129,7 @@ struct dav_repo_walker_private {
     dav_resource resource;
 };
 
+// Used for file uploads to iRODS.
 struct dav_stream {
     apr_pool_t *pool;
 
@@ -142,7 +209,7 @@ static dav_error *set_rods_path_from_uri(dav_resource *resource) {
  * \param[out] dest
  * \param[in]  src
  *
- * \return 
+ * \return
  */
 static void copy_resource_context(dav_resource_private *dest, const dav_resource_private *src) {
     *dest = *src;
@@ -173,7 +240,7 @@ static const char *get_rods_root(apr_pool_t *davrods_pool, request_rec *r) {
     } else if (conf->rods_exposed_root_type == DAVRODS_ROOT_USER_DIR) {
         const char *username = NULL;
         int status = apr_pool_userdata_get((void**)&username, "username", davrods_pool);
-        assert(status == 0);
+        assert(status == 0 && username);
 
         root = apr_pstrcat(davrods_pool,
             "/", conf->rods_zone, "/home/", username,
@@ -272,7 +339,7 @@ static dav_error *get_dav_resource_rods_info(dav_resource *resource) {
  * \param      use_checked_in  unused
  * \param[out] result_resource
  *
- * \return 
+ * \return
  */
 static dav_error *dav_repo_get_resource(
     request_rec *r,
@@ -297,14 +364,18 @@ static dav_error *dav_repo_get_resource(
     );
     assert(res_private->conf);
 
+    // Get Davrods memory pool and make sure the user is logged in.
+    dav_error *err = get_davrods_pool(r, &res_private->davrods_pool);
+    if (err)
+        return err;
+
     // Obtain iRODS connection.
-    res_private->davrods_pool = get_davrods_pool_from_req(r);
     int status = apr_pool_userdata_get((void**)&res_private->rods_conn, "rods_conn", res_private->davrods_pool);
-    assert(status == 0);
+    assert(status == 0 && res_private->rods_conn);
 
     // Obtain iRODS environment.
     status = apr_pool_userdata_get((void**)&res_private->rods_env, "env", res_private->davrods_pool);
-    assert(status == 0);
+    assert(status == 0 && res_private->rods_env);
 
     // Get iRODS exposed root dir.
     res_private->rods_root = get_rods_root(res_private->davrods_pool, r);
@@ -324,7 +395,7 @@ static dav_error *dav_repo_get_resource(
     resource->pool  = res_private->r->pool;
     resource->info  = res_private;
 
-    dav_error *err = get_dav_resource_rods_info(resource);
+    err = get_dav_resource_rods_info(resource);
     if (err)
         return err;
 
@@ -442,7 +513,7 @@ static dav_error *dav_repo_open_stream(
         mode == DAV_MODE_WRITE_SEEKABLE
         || (
                mode == DAV_MODE_WRITE_TRUNC
-            && resource->info->conf->tmpfile_rollback == DAVRODS_TMPFILE_ROLLBACK_NO
+            && resource->info->conf->tmpfile_rollback == DAVRODS_TMPFILE_ROLLBACK_OFF
         )
     ) {
         // Either way, do not use tmpfiles for rollback support.
@@ -1448,7 +1519,7 @@ static dav_error *walker(
         if (ctx->params->lockdb->hooks == davrods_dav_provider_locallock.locks) {
             WHISPER("Checking locks for <%s>", ctx->resource.uri);
 
-            
+
             davrods_locklocal_lock_list_t *locked_name;
             dav_error *err = davrods_locklocal_get_locked_entries(
                 db,
@@ -1490,7 +1561,7 @@ static dav_error *walker(
                     ctx->resource.info->rods_path[rods_path_len] = '/';
                     strcpy(ctx->resource.info->rods_path + rods_path_len + 1, name);
                 }
-                
+
                 ctx->resource.exists     = 0;
                 ctx->resource.collection = 0;
 
@@ -1508,7 +1579,7 @@ static dav_error *walker(
 
             }
 
-#else 
+#else
         // Can we support other locking providers' LOCKNULL walking
         // functionality? (there are no other locking providers as far
         // as I know).

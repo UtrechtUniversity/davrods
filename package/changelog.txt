@@ -1,3 +1,6 @@
+* Mon Aug 7 2017 Chris Smeele <c.j.smeele@uu.nl> - 4.2.1_1.2.0-1
+- Added an anonymous access mode
+
 * Tue Jul 19 2017 Chris Smeele <c.j.smeele@uu.nl> - 4.2.1_1.1.1-1
 - Changed build system to CMake
 - Now supports iRODS 4.2.1 client libraries

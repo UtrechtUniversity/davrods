@@ -99,6 +99,13 @@ static int do_rods_login_pam(
 
 /**
  * \brief Connect to iRODS and attempt to login.
+ *
+ * \param[in]  r         request record
+ * \param[in]  username
+ * \param[in]  password
+ * \param[out] rods_conn will be filled with the new iRODS connection, if auth is succesful.
+ *
+ * \return An authn status code, AUTH_GRANTED if succesful.
  */
 static authn_status rods_login(
     request_rec *r,
@@ -151,11 +158,11 @@ static authn_status rods_login(
 
         // Whether to use SSL for the entire connection.
         // Note: SSL is always in effect during PAM auth, regardless of negotiation results.
-        bool useSsl = false;
+        bool use_ssl = false;
 
         if ((*rods_conn)->negotiation_results
             && !strcmp((*rods_conn)->negotiation_results, "CS_NEG_USE_SSL")) {
-            useSsl = true;
+            use_ssl = true;
         } else {
             // Negotiation was disabled or resulted in CS_NEG_USE_TCP (i.e. no SSL).
         }
@@ -163,7 +170,7 @@ static authn_status rods_login(
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
                       "SSL negotiation result: <%s>: %s",
                       (*rods_conn)->negotiation_results,
-                      useSsl
+                      use_ssl
                           ? "will use SSL for the entire connection"
                           : "will NOT use SSL (if using PAM, SSL will only be used during auth)"
                       );
@@ -173,7 +180,7 @@ static authn_status rods_login(
                       " (ignore ssl_on, it seems 4.x does not update it after SSL is turned on automatically during rcConnect)",
                       (*rods_conn)->ssl?1:0, (*rods_conn)->ssl_on);
 
-        if (useSsl) {
+        if (use_ssl) {
             // Verify that SSL is in effect in compliance with the
             // negotiation result, to prevent any unencrypted
             // information (password or data) to be sent in the clear.
@@ -190,7 +197,7 @@ static authn_status rods_login(
         // If the negotiation result requires plain TCP, but we are
         // using the PAM auth scheme, we need to turn on SSL during
         // auth.
-        if (!useSsl && conf->rods_auth_scheme == DAVRODS_AUTH_PAM) {
+        if (!use_ssl && conf->rods_auth_scheme == DAVRODS_AUTH_PAM) {
             if ((*rods_conn)->ssl) {
                 // This should not happen.
                 // In this situation we don't know if we should stop
@@ -267,7 +274,7 @@ static authn_status rods_login(
 
             // Disable SSL if it was in effect during auth but negotiation (or lack
             // thereof) demanded plain TCP for the rest of the connection.
-            if (!useSsl && (*rods_conn)->ssl) {
+            if (!use_ssl && (*rods_conn)->ssl) {
                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
                               "Disabling SSL (was used for PAM only)");
 
@@ -306,7 +313,7 @@ static authn_status rods_login(
     return result;
 }
 
-static authn_status check_rods(request_rec *r, const char *username, const char *password) {
+authn_status check_rods(request_rec *r, const char *username, const char *password) {
     int status;
 
     // Obtain davrods directory config.
@@ -343,7 +350,7 @@ static authn_status check_rods(request_rec *r, const char *username, const char 
 
         if (status || !pool) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, status, r,
-                          "Could not create davrods apr pool");
+                          "Could not create Davrods apr pool");
             return HTTP_INTERNAL_SERVER_ERROR;
         }
 
