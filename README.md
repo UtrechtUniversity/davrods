@@ -21,7 +21,7 @@ Notable features include:
 
 There are currently two supported Davrods versions:
 
-- [`davrods-4.1_1.1.1`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.1.1), branch `irods-4.1-libs`
+- [`davrods-4.1_1.2.0`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.2.0), branch `irods-4.1-libs`
 - [`davrods-4.2.1_1.2.0`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.2.0), branch `master`
 
 The left side of the version number indicates the version of the iRODS
@@ -35,7 +35,7 @@ versions listed above will work with either iRODS server version.
 
 This section describes the installation steps for `davrods-4.2.1_1.1.1`.
 
-To view instructions for `davrods-4.1_1.1.1`, switch to the
+To view instructions for `davrods-4.1_1.2.0`, switch to the
 [`irods-4.1-libs`](https://github.com/UtrechtUniversity/davrods/tree/irods-4.1-libs)
 branch.
 
