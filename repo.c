@@ -47,8 +47,8 @@ static const char *get_basename(const char *path) {
     if (!len)
         return path;
 
-    for (size_t i=len-1; i>0; i--) {
-        if (i < len-1 && path[i] == '/') {
+    for (ptrdiff_t i=len-1; i>=0; i--) {
+        if ((size_t)i < len-1 && path[i] == '/') {
             WHISPER("Translated path <%s> to basename <%s>\n", path, &path[i+1]);
             return path + i + 1;
         }
