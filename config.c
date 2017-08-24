@@ -80,6 +80,10 @@ void *davrods_create_dir_config(apr_pool_t *p, char *dir) {
         // longer than the maximum keepalive time. (We don't ever use
         // a temporary password more than once).
         conf->rods_auth_ttl = 1; // In hours.
+
+        conf->html_head   = "";
+        conf->html_header = "";
+        conf->html_footer = "";
     }
     return conf;
 }
@@ -120,6 +124,10 @@ void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
     DAVRODS_PROP_MERGE(anonymous_auth_password);
 
     assert(set_exposed_root(conf, exposed_root) >= 0);
+
+    DAVRODS_PROP_MERGE(html_head);
+    DAVRODS_PROP_MERGE(html_header);
+    DAVRODS_PROP_MERGE(html_footer);
 
 #undef DAVRODS_PROP_MERGE
 
@@ -331,6 +339,55 @@ static const char *cmd_davrodsanonymouslogin(
     return NULL;
 }
 
+static bool file_readable(const char *path) {
+    FILE *f = fopen(path, "r");
+    if (f) {
+        fclose(f);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+static const char *cmd_davrodshtmlhead(
+    cmd_parms *cmd, void *config,
+    const char *arg1
+) {
+    davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
+
+    if (strlen(arg1) && !file_readable(arg1))
+        return "The given HtmlHead file is not readable by apache";
+
+    conf->html_head = arg1;
+    return NULL;
+}
+
+static const char *cmd_davrodshtmlheader(
+    cmd_parms *cmd, void *config,
+    const char *arg1
+) {
+    davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
+
+    if (strlen(arg1) && !file_readable(arg1))
+        return "The given HtmlHeader file is not readable by apache";
+
+    conf->html_header = arg1;
+    return NULL;
+}
+
+static const char *cmd_davrodshtmlfooter(
+    cmd_parms *cmd, void *config,
+    const char *arg1
+) {
+    davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
+
+    if (strlen(arg1) && !file_readable(arg1))
+        return "The given HtmlFooter file is not readable by apache";
+
+    conf->html_footer = arg1;
+    return NULL;
+}
+
 // }}}
 
 const command_rec davrods_directives[] = {
@@ -384,7 +441,19 @@ const command_rec davrods_directives[] = {
     ),
     AP_INIT_TAKE_ARGV(
         DAVRODS_CONFIG_PREFIX "AnonymousLogin", cmd_davrodsanonymouslogin,
-        NULL, ACCESS_CONF, "Anonymous mode auth method, username and optional password"
+        NULL, ACCESS_CONF, "Anonymous mode username and optional password"
+    ),
+    AP_INIT_TAKE1(
+        DAVRODS_CONFIG_PREFIX "HtmlHead", cmd_davrodshtmlhead,
+        NULL, ACCESS_CONF, "File that's inserted into HTML directory listings, in the head tag"
+    ),
+    AP_INIT_TAKE1(
+        DAVRODS_CONFIG_PREFIX "HtmlHeader", cmd_davrodshtmlheader,
+        NULL, ACCESS_CONF, "File that's inserted into HTML directory listings, in the body tag"
+    ),
+    AP_INIT_TAKE1(
+        DAVRODS_CONFIG_PREFIX "HtmlFooter", cmd_davrodshtmlfooter,
+        NULL, ACCESS_CONF, "File that's inserted into HTML directory listings, in the body tag"
     ),
 
     { NULL }

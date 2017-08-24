@@ -69,6 +69,10 @@ typedef struct {
         DAVRODS_ROOT_USER_DIR,       //             User             => /<zone>/home/<username>
     } rods_exposed_root_type;
 
+    const char *html_head;
+    const char *html_header;
+    const char *html_footer;
+
 } davrods_dir_conf_t;
 
 extern const command_rec davrods_directives[];

@@ -1031,7 +1031,7 @@ static dav_error *deliver_file(
         } while ((size_t)bytes_read == buffer_size);
 
         openedDataObjInp_t close_params = { 0 };
-        close_params .l1descInx = data_obj.l1descInx;
+        close_params.l1descInx = data_obj.l1descInx;
 
         status = rcDataObjClose(resource->info->rods_conn, &close_params);
         if (status < 0) {
@@ -1062,6 +1062,73 @@ static dav_error *deliver_file(
     apr_brigade_destroy(bb);
 
     return NULL;
+}
+
+/**
+ * \brief Within a HTML directory listing, insert the contents of a local file.
+ *
+ * \param resource Provides context, pool etc.
+ * \param bb       The bucket brigade
+ * \param path     The local file path to read (must be accessible by httpd)
+ *
+ * \return APR_SUCCESS on success, an APR_* error code otherwise
+ */
+static apr_status_t deliver_directory_try_insert_local_file(
+    const dav_resource *resource,
+    apr_bucket_brigade *bb,
+    const char *path
+) {
+    if (!strlen(path))
+        return APR_SUCCESS;
+
+    apr_file_t *f;
+    apr_status_t status = apr_file_open(&f, path, APR_FOPEN_READ, 0, resource->pool);
+
+    if (status == APR_SUCCESS) {
+        apr_finfo_t info;
+        status = apr_file_info_get(&info, APR_FINFO_SIZE, f);
+
+        if (status == APR_SUCCESS) {
+            apr_size_t chunk_size = AP_IOBUFSIZE;
+            apr_size_t read_total = 0;
+
+            char *buf = malloc(chunk_size);
+            assert(buf);
+
+            // Read the file in chunks and write the contents to the brigade.
+            while (read_total < (apr_size_t)info.size) {
+                if (info.size - read_total < chunk_size)
+                    chunk_size = info.size - read_total;
+
+                apr_size_t read_count = 0;
+                status = apr_file_read_full(f, buf, chunk_size, &read_count);
+
+                if (read_count == chunk_size && status == APR_SUCCESS) {
+                    apr_brigade_write(bb, NULL, NULL, buf, read_count);
+                    read_total += read_count;
+                } else {
+                    break;
+                }
+            }
+
+            free(buf);
+
+            if (read_total != (apr_size_t)info.size || status != APR_SUCCESS) {
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, status, resource->info->r,
+                              "Could not read file <%s>", path);
+            }
+        } else {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, status, resource->info->r,
+                          "Could not stat file <%s>", path);
+        }
+        apr_file_close(f);
+
+    } else {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, status, resource->info->r,
+                      "Could not open file <%s> for reading", path);
+    }
+
+    return status;
 }
 
 static dav_error *deliver_directory(
@@ -1114,28 +1181,34 @@ static dav_error *deliver_directory(
     apr_brigade_printf(bb, NULL, NULL,
                        "<!DOCTYPE html>\n<html>\n<head>\n"
                        "<title>Index of %s on %s</title>\n"
-                       "<base href=\"%s%s\">\n"
-                       "</head>\n",
+                       "<base href=\"%s%s\">\n",
                        ap_escape_html(pool, resource->info->relative_uri),
                        ap_escape_html(pool, resource->info->conf->rods_zone),
                        ap_escape_html(pool, ap_escape_uri(pool, resource->info->relative_uri)),
                        uri_ends_with_slash ? "" : "/"); // Append a slash to fix relative links on this page.
+
+    deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_head);
+
+    apr_brigade_puts(bb, NULL, NULL, "</head>\n<body>\n");
+
+    deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_header);
+
     apr_brigade_printf(bb, NULL, NULL,
-                     "<body>\n\n"
                      "<!-- Warning: Do not parse this directory listing programmatically,\n"
                      "              the format may change without notice!\n"
                      "              If you want to script access to these WebDAV collections,\n"
                      "              please use the PROPFIND method instead. -->\n\n"
-                     "<h1>Index of %s on %s</h1>\n",
+                     "<h1>Index of <span class=\"relative-uri\">%s</span> on <span class=\"zone\">%s</span></h1>\n",
                      ap_escape_html(pool, resource->info->relative_uri),
                      ap_escape_html(pool, resource->info->conf->rods_zone));
 
     if (strcmp(resource->info->relative_uri, "/"))
-        apr_brigade_puts(bb, NULL, NULL, "<p><a href=\"..\">↖ Parent collection</a></p>\n");
+        apr_brigade_puts(bb, NULL, NULL, "<p><a class=\"parent-link\" href=\"..\">Parent collection</a></p>\n");
 
     apr_brigade_puts(bb, NULL, NULL,
                      "<table>\n<thead>\n"
-                     "  <tr><th>Name</th><th>Size</th><th>Owner</th><th>Last modified</th></tr>\n"
+                     "  <tr><th class=\"name\">Name</th><th class=\"size\">Size</th><th class=\"owner\">Owner</th><th class=\"date\">Last modified</th></tr>\n"
+
                      "</thead>\n<tbody>\n");
 
     // Actually print the directory listing, one table row at a time.
@@ -1156,20 +1229,52 @@ static dav_error *deliver_directory(
                                      "Could not read a collection entry from a collection.");
             }
         } else {
-            apr_brigade_puts(bb, NULL, NULL, "  <tr>");
-
             const char *name = coll_entry.objType == DATA_OBJ_T
                 ? coll_entry.dataName
                 : get_basename(coll_entry.collName);
 
+            char *extension = NULL;
+            if (coll_entry.objType == DATA_OBJ_T) {
+                // Data object. Extract the extension to assist theming.
+                const char *orig_extension = strrchr(name, '.'); // Inludes the dot.
+                if (orig_extension && strlen(orig_extension) > 1) {
+                    extension = apr_pstrdup(pool, orig_extension + 1);
+                    assert(extension);
+                    size_t len = strlen(extension);
+                    for (size_t i = 0; i < len; ++i) {
+                        if (extension[i] >= 'A' && extension[i] <= 'Z') {
+                            // Lowercase.
+                            extension[i] = extension[i] + ('a' - 'A');
+
+                        } else if ((extension[i] >= 'a' && extension[i] <= 'z')
+                                || (extension[i] >= '0' && extension[i] <= '9')
+                                || extension[i] == '-'
+                                || extension[i] == '_') {
+                            // OK.
+                        } else {
+                            // Restrict allowed extension characters to keep HTML class name well-formed.
+                            extension = NULL;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            apr_brigade_printf(bb, NULL, NULL, "  <tr class=\"object%s%s%s\">",
+                               coll_entry.objType   == COLL_OBJ_T ? " collection"
+                               : coll_entry.objType == DATA_OBJ_T ? " data-object"
+                               : "",
+                               extension ? " extension-" : "",
+                               extension ?   extension   : "");
+
             // Generate link.
             if (coll_entry.objType == COLL_OBJ_T) {
                 // Collection links need a trailing slash for the '..' links to work correctly.
-                apr_brigade_printf(bb, NULL, NULL, "<td><a href=\"%s/\">%s/</a></td>",
+                apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s/\">%s/</a></td>",
                                    ap_escape_html(pool, ap_escape_uri(pool, name)),
                                    ap_escape_html(pool, name));
             } else {
-                apr_brigade_printf(bb, NULL, NULL, "<td><a href=\"%s\">%s</a></td>",
+                apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s\">%s</a></td>",
                                    ap_escape_html(pool, ap_escape_uri(pool, name)),
                                    ap_escape_html(pool, name));
             }
@@ -1180,15 +1285,15 @@ static dav_error *deliver_directory(
                 // Fancy file size formatting.
                 apr_strfsize(coll_entry.dataSize, size_buf);
                 if (size_buf[0])
-                    apr_brigade_printf(bb, NULL, NULL, "<td>%s</td>", size_buf);
+                    apr_brigade_printf(bb, NULL, NULL, "<td class=\"size\">%s</td>", size_buf);
                 else
-                    apr_brigade_printf(bb, NULL, NULL, "<td>%lu</td>", coll_entry.dataSize);
+                    apr_brigade_printf(bb, NULL, NULL, "<td class=\"size\">%lu</td>", coll_entry.dataSize);
             } else {
-                apr_brigade_puts(bb, NULL, NULL, "<td></td>");
+                apr_brigade_puts(bb, NULL, NULL, "<td class=\"size\"></td>");
             }
 
             // Print owner.
-            apr_brigade_printf(bb, NULL, NULL, "<td>%s</td>",
+            apr_brigade_printf(bb, NULL, NULL, "<td class=\"owner\">%s</td>",
                                ap_escape_html(pool, coll_entry.ownerName));
 
             // Print modified-date string.
@@ -1202,14 +1307,14 @@ static dav_error *deliver_directory(
 
             size_t ret_size;
             if (!apr_strftime(date_str, &ret_size, sizeof(date_str), "%Y-%m-%d %H:%M", &exploded)) {
-                apr_brigade_printf(bb, NULL, NULL, "<td>%s</td>",
+                apr_brigade_printf(bb, NULL, NULL, "<td class=\"date\">%s</td>",
                                    ap_escape_html(pool, date_str));
             } else {
                 // Fallback, just in case.
                 static_assert(sizeof(date_str) >= APR_RFC822_DATE_LEN,
                               "Size of date_str buffer too low for RFC822 date");
                 int status = apr_rfc822_date(date_str, timestamp*1000*1000);
-                apr_brigade_printf(bb, NULL, NULL, "<td>%s</td>",
+                apr_brigade_printf(bb, NULL, NULL, "<td class=\"date\">%s</td>",
                                    ap_escape_html(pool, status >= 0 ? date_str : "Thu, 01 Jan 1970 00:00:00 GMT"));
             }
 
@@ -1217,8 +1322,12 @@ static dav_error *deliver_directory(
         }
     } while (status >= 0);
 
+    apr_brigade_puts(bb, NULL, NULL, "</tbody>\n</table>\n");
+
+    deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_footer);
+
     // End HTML document.
-    apr_brigade_puts(bb, NULL, NULL, "</tbody>\n</table>\n</body>\n</html>\n");
+    apr_brigade_puts(bb, NULL, NULL, "</body>\n</html>\n");
 
     // Flush.
     if ((status = ap_pass_brigade(output, bb)) != APR_SUCCESS) {
