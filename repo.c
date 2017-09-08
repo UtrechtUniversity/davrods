@@ -1177,13 +1177,20 @@ static dav_error *deliver_directory(
       if (uri_length && resource->info->relative_uri[uri_length-1] == '/')
           uri_ends_with_slash = true; }
 
+    char *root_dir_without_trailing_slash = apr_pstrdup(pool, resource->info->root_dir);
+    { size_t len = strlen(root_dir_without_trailing_slash);
+      if (len && root_dir_without_trailing_slash[len-1] == '/')
+          root_dir_without_trailing_slash[len-1] = '\0'; }
+
     // Send start of HTML document.
     apr_brigade_printf(bb, NULL, NULL,
                        "<!DOCTYPE html>\n<html>\n<head>\n"
-                       "<title>Index of %s on %s</title>\n"
-                       "<base href=\"%s%s\">\n",
+                       "<title>Index of %s%s on %s</title>\n"
+                       "<base href=\"%s%s%s\">\n",
                        ap_escape_html(pool, resource->info->relative_uri),
+                       uri_ends_with_slash ? "" : "/",
                        ap_escape_html(pool, resource->info->conf->rods_zone),
+                       ap_escape_html(pool, ap_escape_uri(pool, root_dir_without_trailing_slash)),
                        ap_escape_html(pool, ap_escape_uri(pool, resource->info->relative_uri)),
                        uri_ends_with_slash ? "" : "/"); // Append a slash to fix relative links on this page.
 
@@ -1193,16 +1200,42 @@ static dav_error *deliver_directory(
 
     deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_header);
 
-    apr_brigade_printf(bb, NULL, NULL,
+    apr_brigade_puts(bb, NULL, NULL,
                      "<!-- Warning: Do not parse this directory listing programmatically,\n"
                      "              the format may change without notice!\n"
                      "              If you want to script access to these WebDAV collections,\n"
                      "              please use the PROPFIND method instead. -->\n\n"
-                     "<h1>Index of <span class=\"relative-uri\">%s</span> on <span class=\"zone\">%s</span></h1>\n",
-                     ap_escape_html(pool, resource->info->relative_uri),
-                     ap_escape_html(pool, resource->info->conf->rods_zone));
+                     "<h1>Index of <span class=\"relative-uri\">");
 
-    if (strcmp(resource->info->relative_uri, "/"))
+    {
+        // Print breadcrumb path.
+        size_t uri_len = strlen(resource->info->relative_uri);
+        char * const path = apr_pcalloc(pool, uri_len + 2);
+        strcpy(path, resource->info->relative_uri);
+        if (!uri_ends_with_slash)
+            path[uri_len] = '/';
+
+        char *p = path;
+        const char *part = p;
+        for (; *p; ++p) {
+            if (*p == '/') {
+                *p = '\0';
+                apr_brigade_printf(bb, NULL, NULL,
+                                   "<a href=\"%s%s/\">%s</a>%s",
+                                   ap_escape_html(pool, ap_escape_uri(pool, root_dir_without_trailing_slash)),
+                                   ap_escape_html(pool, ap_escape_uri(pool, path)),
+                                   p == path ? "/" : ap_escape_html(pool, part+1),
+                                   p == path ? ""  : "/");
+                *p = '/';
+                part = p;
+            }
+        }
+    }
+
+    apr_brigade_printf(bb, NULL, NULL, "</span> on <span class=\"zone-name\">%s</span></h1>\n",
+                       ap_escape_html(pool, resource->info->conf->rods_zone));
+
+    if (strcmp(resource->info->relative_uri, "/") && resource->info->relative_uri[0])
         apr_brigade_puts(bb, NULL, NULL, "<p><a class=\"parent-link\" href=\"..\">Parent collection</a></p>\n");
 
     apr_brigade_puts(bb, NULL, NULL,
@@ -1236,7 +1269,7 @@ static dav_error *deliver_directory(
             char *extension = NULL;
             if (coll_entry.objType == DATA_OBJ_T) {
                 // Data object. Extract the extension to assist theming.
-                const char *orig_extension = strrchr(name, '.'); // Inludes the dot.
+                const char *orig_extension = strrchr(name, '.'); // Includes the dot.
                 if (orig_extension && strlen(orig_extension) > 1) {
                     extension = apr_pstrdup(pool, orig_extension + 1);
                     assert(extension);
