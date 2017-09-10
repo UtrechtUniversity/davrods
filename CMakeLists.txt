@@ -4,7 +4,7 @@ project(davrods C)
 
 set(IRODS_VERSION "4.2.1" CACHE STRING "iRODS client library version")
 
-set(DAVRODS_VERSION "${IRODS_VERSION}_1.2.0")
+set(DAVRODS_VERSION "${IRODS_VERSION}_1.3.0")
 
 find_program(APXS apxs DOC "Apache/HTTPD extension tool location")
 if(NOT APXS)
@@ -94,6 +94,12 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
     install(FILES       irods_environment.json
             DESTINATION /etc/httpd/irods/)
 
+    install(FILES       aux/listing/head.html
+                        aux/listing/header.html
+                        aux/listing/footer.html
+                        aux/listing/README.md
+            DESTINATION /etc/httpd/irods/)
+
     install(FILES       README.md COPYING COPYING.LESSER
             DESTINATION /usr/share/doc/davrods-${DAVRODS_VERSION}/)
 
@@ -135,6 +141,9 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
         "%config(noreplace) /etc/httpd/conf.d/davrods-vhost.conf"
         "%config(noreplace) /etc/httpd/conf.d/davrods-anonymous-vhost.conf"
         "%config(noreplace) /etc/httpd/irods/irods_environment.json"
+        "%config(noreplace) /etc/httpd/irods/head.html"
+        "%config(noreplace) /etc/httpd/irods/header.html"
+        "%config(noreplace) /etc/httpd/irods/footer.html"
         "%attr(700,apache,apache) /var/lib/davrods")
 
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}")

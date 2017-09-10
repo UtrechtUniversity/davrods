@@ -1,3 +1,8 @@
+* Fri Sep 8 2017 Chris Smeele <c.j.smeele@uu.nl> - 4.2.1_1.3.0-1
+- Added support for themed listings
+- Fixed: Error in path handling when ExposedRoot is '/'
+- Fixed: Listing HTML links were not always correct when Location was not '/'.
+
 * Mon Aug 7 2017 Chris Smeele <c.j.smeele@uu.nl> - 4.2.1_1.2.0-1
 - Added an anonymous access mode
 
