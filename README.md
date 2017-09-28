@@ -18,6 +18,9 @@ Notable features include:
 - Supports themeable directory listings for read-only web browser access.
 - Supports iRODS server versions 4+ and is backwards compatible with 3.3.1.
 
+Themeable listings and anonymous access were inspired by Simon Tyrrell's
+[work](https://github.com/billyfish/eirods-dav) at Earlham Institute.
+
 ## Download ##
 
 There are currently two supported Davrods versions:
