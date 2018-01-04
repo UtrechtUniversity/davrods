@@ -29,7 +29,7 @@
 #include <irods/rodsClient.h>
 #include <irods/sslSockComm.h>
 
-#ifdef APLOG_USE_MODULE 
+#ifdef APLOG_USE_MODULE
 APLOG_USE_MODULE(davrods);
 #endif
 

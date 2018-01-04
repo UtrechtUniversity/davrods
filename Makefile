@@ -11,8 +11,8 @@ SHARED       := ./.libs/$(SHARED_FNAME)
 INSTALL_DIR  ?= /usr/lib64/httpd/modules
 INSTALLED    := $(INSTALL_DIR)/mod_$(MODNAME).so
 
-CFILES := mod_davrods.c auth.c common.c config.c prop.c propdb.c repo.c
-HFILES := mod_davrods.h auth.h common.h config.h prop.h propdb.h repo.h
+CFILES := mod_davrods.c auth.c common.c config.c prop.c propdb.c repo.c byterange.c
+HFILES := mod_davrods.h auth.h common.h config.h prop.h propdb.h repo.h byterange.h
 
 # The DAV providers supported by default (you can override this in the shell using DAV_PROVIDERS="..." make).
 DAV_PROVIDERS ?= LOCALLOCK NOLOCKS

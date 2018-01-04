@@ -1,8 +1,8 @@
 /**
  * \file
- * \brief     HTTP Basic auth provider for iRODS.
+ * \brief     Davrods GET+Range request support.
  * \author    Chris Smeele
- * \copyright Copyright (c) 2016, Utrecht University
+ * \copyright Copyright (c) 2018, Utrecht University
  *
  * This file is part of Davrods.
  *
@@ -19,14 +19,17 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with Davrods.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _DAVRODS_AUTH_H
-#define _DAVRODS_AUTH_H
+#ifndef _DAVRODS_BYTERANGE_H
+#define _DAVRODS_BYTERANGE_H
 
-#include "mod_davrods.h"
-#include <mod_auth.h>
+#include "common.h"
 
-authn_status check_rods(request_rec *r, const char *username, const char *password);
+#include <irods/rodsClient.h>
+#include <irods/rods.h>
 
-void davrods_auth_register(apr_pool_t *p);
+dav_error *davrods_byterange_deliver_file(const dav_resource *resource,
+                                          openedDataObjInp_t *data_obj,
+                                          ap_filter_t        *output,
+                                          apr_bucket_brigade *bb);
 
-#endif /* _DAVRODS_AUTH_H */
+#endif /* _DAVRODS_BYTERANGE_H */
