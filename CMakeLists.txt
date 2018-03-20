@@ -72,7 +72,8 @@ set(SOURCES
     src/prop.c
     src/propdb.c
     src/repo.c
-    src/lock_local.c)
+    src/lock_local.c
+    src/byterange.c)
 
 add_library(mod_davrods SHARED ${SOURCES})
 
