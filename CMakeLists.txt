@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.12)
 
 project(davrods C)
 
-set(IRODS_VERSION "4.2.1" CACHE STRING "iRODS client library version")
+set(IRODS_VERSION "4.2.2" CACHE STRING "iRODS client library version")
 
 set(DAVRODS_VERSION "${IRODS_VERSION}_1.3.0")
 
@@ -65,14 +65,14 @@ add_compile_options(-Wall
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro,-z,now")
 
 set(SOURCES
-    mod_davrods.c
-    auth.c
-    common.c
-    config.c
-    prop.c
-    propdb.c
-    repo.c
-    lock_local.c)
+    src/mod_davrods.c
+    src/auth.c
+    src/common.c
+    src/config.c
+    src/prop.c
+    src/propdb.c
+    src/repo.c
+    src/lock_local.c)
 
 add_library(mod_davrods SHARED ${SOURCES})
 
@@ -83,24 +83,24 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
     install(TARGETS     mod_davrods
             DESTINATION ${HTTPD_BUILDSYS_MODULE_DIR})
 
-    install(FILES       davrods.conf
+    install(FILES       aux/rpm/davrods.conf
             DESTINATION /etc/httpd/conf.modules.d
             RENAME      10-davrods.conf)
 
-    install(FILES       davrods-vhost.conf
-                        davrods-anonymous-vhost.conf
+    install(FILES       aux/rpm/davrods-vhost.conf
+                        aux/rpm/davrods-anonymous-vhost.conf
             DESTINATION /etc/httpd/conf.d/)
 
-    install(FILES       irods_environment.json
+    install(FILES       aux/common/irods_environment.json
             DESTINATION /etc/httpd/irods/)
 
-    install(FILES       aux/listing/head.html
-                        aux/listing/header.html
-                        aux/listing/footer.html
-                        aux/listing/README.md
+    install(FILES       aux/common/listing/head.html
+                        aux/common/listing/header.html
+                        aux/common/listing/footer.html
+                        aux/common/listing/README.md
             DESTINATION /etc/httpd/irods/)
 
-    install(FILES       README.md COPYING COPYING.LESSER
+    install(FILES       README.md COPYING COPYING.LESSER changelog.txt
             DESTINATION /usr/share/doc/davrods-${DAVRODS_VERSION}/)
 
     install(DIRECTORY
@@ -118,7 +118,7 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
     #set(CPACK_PACKAGE_VERSION_MAJOR "4")
     #set(CPACK_PACKAGE_VERSION_MINOR "2")
     #set(CPACK_PACKAGE_VERSION_PATCH "1")
-    set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/package/description.txt")
+    set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/aux/rpm/description.txt")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A DAV level 2 compliant Apache interface to iRODS")
 
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING.LESSER")
@@ -128,15 +128,16 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
     set(CPACK_RPM_PACKAGE_LICENSE "LGPLv3+")
     set(CPACK_RPM_PACKAGE_REQUIRES "httpd >= 2.4, irods-runtime = ${IRODS_VERSION}")
     set(CPACK_RPM_PACKAGE_URL "https://github.com/UtrechtUniversity/davrods")
-    set(CPACK_RPM_CHANGELOG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/package/changelog.txt")
+    set(CPACK_RPM_CHANGELOG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/changelog.txt")
     set(CPACK_RPM_PACKAGE_AUTOREQ 0)
     set(CPACK_RPM_PACKAGE_AUTOPROV 0)
-    set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/package/postinst.sh")
+    set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/aux/rpm/postinst.sh")
 
     set(CPACK_RPM_USER_FILELIST
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/README.md"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/COPYING"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/COPYING.LESSER"
+        "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/changelog.txt"
         "%config(noreplace) /etc/httpd/conf.modules.d/10-davrods.conf"
         "%config(noreplace) /etc/httpd/conf.d/davrods-vhost.conf"
         "%config(noreplace) /etc/httpd/conf.d/davrods-anonymous-vhost.conf"
