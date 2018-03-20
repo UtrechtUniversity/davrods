@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Post-install script for DEB distros.
+
+# Fix permissions for lockdb directory.
+chmod 700 /var/lib/davrods
+chown www-data:www-data /var/lib/davrods
