@@ -1,17 +1,8 @@
-# Output files
-*.slo
-*.la
-*.lo
-*.o
-*.so
-/.libs
-/doc
-
 # Local files
+/build
 /dist
 *~*
 *.swp
-*.swo
 .clang_complete
 GPATH
 GRTAGS

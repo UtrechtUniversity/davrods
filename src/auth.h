@@ -19,8 +19,8 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with Davrods.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _RODS_AUTH_H
-#define _RODS_AUTH_H
+#ifndef _DAVRODS_AUTH_H
+#define _DAVRODS_AUTH_H
 
 #include "mod_davrods.h"
 #include <mod_auth.h>
@@ -29,4 +29,4 @@ authn_status check_rods(request_rec *r, const char *username, const char *passwo
 
 void davrods_auth_register(apr_pool_t *p);
 
-#endif /* _RODS_AUTH_H */
+#endif /* _DAVRODS_AUTH_H */

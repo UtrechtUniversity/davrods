@@ -2,7 +2,7 @@
  * \file
  * \brief     Davrods DAV repository.
  * \author    Chris Smeele
- * \copyright Copyright (c) 2016, Utrecht University
+ * \copyright Copyright (c) 2016-2018, Utrecht University
  *
  * This file is part of Davrods.
  *
@@ -21,6 +21,7 @@
  */
 #include "repo.h"
 #include "auth.h" // For anonymous access.
+#include "byterange.h"
 
 #include <http_request.h>
 #include <http_protocol.h>
@@ -923,8 +924,15 @@ static dav_error *dav_repo_set_headers(
         // A GET on a collection => client must be a web browser / standard HTTP client.
         // We will output an HTML directory listing.
         ap_set_content_type(r, "text/html; charset=utf-8");
+
         // Do not let them cache directory content renders.
         apr_table_setn(r->headers_out, "Cache-Control", "no-cache, must-revalidate");
+
+        // We do not accept range requests on directory content listings.
+        // The spec doesn't require us to state this, but it's nice to be
+        // explicit when you *do* accept ranges on other resources.
+        apr_table_setn(r->headers_out, "Accept-Ranges", "none");
+
     } else {
         char *date_str     = apr_pcalloc(r->pool, APR_RFC822_DATE_LEN);
         assert(date_str);
@@ -942,6 +950,12 @@ static dav_error *dav_repo_set_headers(
         if (etag && strlen(etag))
             apr_table_setn(r->headers_out, "ETag", etag);
 
+        // We accept range requests on data objects.
+        // This will advertise range header support with configured limits, if any.
+        ap_set_accept_ranges(r);
+
+        // This will be overwritten in byterange.c if the request turns out to be
+        // a valid range request.
         ap_set_content_length(r, resource->info->stat->objSize);
     }
 
@@ -954,14 +968,15 @@ static dav_error *deliver_file(
 ) {
     // Download a file from iRODS to the WebDAV client.
 
+    // Setup the output brigade.
     apr_pool_t         *pool = resource->pool;
     apr_bucket_brigade *bb;
-    apr_bucket         *bkt;
 
     bb = apr_brigade_create(pool, output->c->bucket_alloc);
 
     dataObjInp_t open_params = {{ 0 }};
 
+    // Open the iRODS object.
     open_params.openFlags = O_RDONLY;
     strcpy(open_params.objPath, resource->info->rods_path);
 
@@ -970,88 +985,41 @@ static dav_error *deliver_file(
     if ((status = rcDataObjOpen(resource->info->rods_conn, &open_params)) < 0) {
         apr_brigade_destroy(bb);
 
-        ap_log_rerror(
-            APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
-            "rcDataObjOpen failed: %d = %s", status, get_rods_error_msg(status)
-        );
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
+                      "rcDataObjOpen failed: %d = %s", status, get_rods_error_msg(status));
 
-        // Note: This might be a CONFLICT situation where the file was deleted
-        //       in a separate concurrent request.
-
-        return dav_new_error(
-            pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
-            "Could not open requested resource for reading"
-        );
-    } else {
-        // `status` contains some sort of file descriptor.
-        openedDataObjInp_t data_obj = { .l1descInx = status };
-
-        bytesBuf_t read_buffer = { 0 };
-
-        size_t buffer_size = resource->info->conf->rods_rx_buffer_size;
-        data_obj.len       = buffer_size;
-
-        int bytes_read = 0;
-
-        ap_log_rerror(
-            APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, resource->info->r,
-            "Reading data object in %luK chunks", buffer_size / 1024
-        );
-
-        // Read from iRODS, write to the client.
-        do {
-            bytes_read = rcDataObjRead(resource->info->rods_conn, &data_obj, &read_buffer);
-
-            if (bytes_read < 0) {
-                if (read_buffer.buf)
-                    free(read_buffer.buf);
-                apr_brigade_destroy(bb);
-
-                ap_log_rerror(
-                    APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
-                    "rcDataObjRead failed: %d = %s", bytes_read, get_rods_error_msg(bytes_read)
-                );
-                return dav_new_error(
-                    pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
-                    "Could not read from requested resource"
-                );
-            }
-            apr_brigade_write(bb, NULL, NULL, read_buffer.buf, bytes_read);
-
-            free(read_buffer.buf);
-            read_buffer.buf = NULL;
-
-            if ((status = ap_pass_brigade(output, bb)) != APR_SUCCESS) {
-                apr_brigade_destroy(bb);
-                return dav_new_error(
-                    pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
-                    "Could not write contents to filter."
-                );
-            }
-        } while ((size_t)bytes_read == buffer_size);
-
-        openedDataObjInp_t close_params = { 0 };
-        close_params.l1descInx = data_obj.l1descInx;
-
-        status = rcDataObjClose(resource->info->rods_conn, &close_params);
-        if (status < 0) {
-            ap_log_rerror(
-                APLOG_MARK, APLOG_WARNING, APR_SUCCESS, resource->info->r,
-                "rcDataObjClose failed: %d = %s (proceeding as if nothing happened)",
-                status, get_rods_error_msg(status)
-            );
-            // We already gave the entire file to the client, it makes no sense to send them an error here.
-
-            //return dav_new_error(
-            //    pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
-            //    "Could not close requested data object"
-            //);
-        }
-
+        return dav_new_error(pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
+                             "Could not open requested resource for reading");
     }
 
-    bkt = apr_bucket_eos_create(output->c->bucket_alloc);
+    // `status` now contains a sort of file descriptor.
+    openedDataObjInp_t data_obj = { .l1descInx = status };
 
+    // Hand the request over to our byterange component,
+    // so it can deal with Range requests.
+    dav_error *err = davrods_byterange_deliver_file(resource, &data_obj, output, bb);
+    if (err) {
+        apr_brigade_destroy(bb);
+        return err;
+    }
+
+    // Done, close the object.
+    openedDataObjInp_t close_params = { 0 };
+    close_params.l1descInx = data_obj.l1descInx;
+
+    status = rcDataObjClose(resource->info->rods_conn, &close_params);
+    if (status < 0) {
+        ap_log_rerror(
+            APLOG_MARK, APLOG_WARNING, APR_SUCCESS, resource->info->r,
+            "rcDataObjClose failed: %d = %s",
+            status, get_rods_error_msg(status)
+        );
+        // We already gave the entire file to the client,
+        // it makes no sense to send them an error here.
+    }
+
+    // Terminate and clean up the bucket brigade.
+    apr_bucket *bkt = apr_bucket_eos_create(output->c->bucket_alloc);
     APR_BRIGADE_INSERT_TAIL(bb, bkt);
 
     if ((status = ap_pass_brigade(output, bb)) != APR_SUCCESS) {
