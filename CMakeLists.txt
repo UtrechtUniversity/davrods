@@ -2,9 +2,11 @@ cmake_minimum_required(VERSION 2.8.12)
 
 project(davrods C)
 
-set(IRODS_VERSION "4.2.1" CACHE STRING "iRODS client library version")
+set(IRODSRT_VERSION "4.2.2" CACHE STRING "iRODS client library version")
 
-set(DAVRODS_VERSION "${IRODS_VERSION}_1.3.0")
+set(DAVRODS_FEATURE     "1.4.0")
+set(DAVRODS_VERSION     "${IRODSRT_VERSION}_${DAVRODS_FEATURE}")
+set(DAVRODS_VERSION_DEB "${IRODSRT_VERSION}-${DAVRODS_FEATURE}")
 
 find_program(APXS apxs DOC "Apache/HTTPD extension tool location")
 if(NOT APXS)
@@ -28,11 +30,21 @@ set(IRODS_INCLUDE_DIR "/usr/include/irods" CACHE STRING "iRODS include directory
 
 if(IS_DIRECTORY /etc/httpd/conf.modules.d)
     # This looks like CentOS7's httpd, we know where to put our files on install.
-    set(INSTALLABLE_ON_THIS_SYSTEM TRUE)
+    set(SYSTEM_LOOKS_LIKE "CentOS7")
+elseif(IS_DIRECTORY /etc/apache2/mods-available)
+    # This looks like Debian/Ubuntu, we know where to put our files on install.
+    # Thanks to @holtgrewe for the initial porting work.
+    set(SYSTEM_LOOKS_LIKE "Debian")
+
+    # Debian notes, postinstall:
+    #
+    # a2enmod davrods
+    # a2enmod dav
+    # apache2ctl restart
 else()
-    set(INSTALLABLE_ON_THIS_SYSTEM FALSE)
+    set(SYSTEM_LOOKS_LIKE "--Unknown--")
     message(WARNING "
-Davrods' build system currently only supports the cmake 'install' target on CentOS7-like systems.
+Davrods' build system currently only supports the cmake 'install' target on CentOS7 and Debian-like systems.
 If you are running CentOS or similar, make sure httpd is installed before running cmake: This build system requires certain HTTPD directories to be in place.
 If you are running a different Linux distribution or if your HTTPD configuration layout differs otherwise, you can install Davrods manually after building. See the instructions in README.md.")
 endif()
@@ -65,49 +77,78 @@ add_compile_options(-Wall
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro,-z,now")
 
 set(SOURCES
-    mod_davrods.c
-    auth.c
-    common.c
-    config.c
-    prop.c
-    propdb.c
-    repo.c
-    lock_local.c)
+    src/mod_davrods.c
+    src/auth.c
+    src/common.c
+    src/config.c
+    src/prop.c
+    src/propdb.c
+    src/repo.c
+    src/lock_local.c
+    src/byterange.c)
 
 add_library(mod_davrods SHARED ${SOURCES})
 
 # Remove "lib" prefix from module SO file.
 set_property(TARGET mod_davrods PROPERTY PREFIX "")
 
-if(INSTALLABLE_ON_THIS_SYSTEM)
+# Enable OS-dependent installation targets
+if(SYSTEM_LOOKS_LIKE STREQUAL "CentOS7")
     install(TARGETS     mod_davrods
             DESTINATION ${HTTPD_BUILDSYS_MODULE_DIR})
 
-    install(FILES       davrods.conf
+    install(FILES       aux/rpm/davrods.conf
             DESTINATION /etc/httpd/conf.modules.d
             RENAME      10-davrods.conf)
 
-    install(FILES       davrods-vhost.conf
-                        davrods-anonymous-vhost.conf
+    install(FILES       aux/rpm/davrods-vhost.conf
+                        aux/rpm/davrods-anonymous-vhost.conf
             DESTINATION /etc/httpd/conf.d/)
 
-    install(FILES       irods_environment.json
+    install(FILES       aux/common/irods_environment.json
             DESTINATION /etc/httpd/irods/)
 
-    install(FILES       aux/listing/head.html
-                        aux/listing/header.html
-                        aux/listing/footer.html
-                        aux/listing/README.md
+    install(FILES       aux/common/listing/head.html
+                        aux/common/listing/header.html
+                        aux/common/listing/footer.html
+                        aux/common/listing/README.md
             DESTINATION /etc/httpd/irods/)
 
-    install(FILES       README.md COPYING COPYING.LESSER
+    install(FILES       README.md COPYING COPYING.LESSER changelog.txt
+            DESTINATION /usr/share/doc/davrods-${DAVRODS_VERSION}/)
+
+    install(DIRECTORY
+            DESTINATION /var/lib/davrods)
+
+elseif(SYSTEM_LOOKS_LIKE STREQUAL "Debian")
+    install(TARGETS     mod_davrods
+            DESTINATION ${HTTPD_BUILDSYS_MODULE_DIR})
+
+    install(FILES       aux/deb/davrods.conf
+            DESTINATION /etc/apache2/mods-available
+            RENAME      davrods.load)
+
+    install(FILES       aux/deb/davrods-vhost.conf
+                        aux/deb/davrods-anonymous-vhost.conf
+            DESTINATION /etc/apache2/sites-available/)
+
+    install(FILES       aux/common/irods_environment.json
+            DESTINATION /etc/apache2/irods/)
+
+    install(FILES       aux/common/listing/head.html
+                        aux/common/listing/header.html
+                        aux/common/listing/footer.html
+                        aux/common/listing/README.md
+            DESTINATION /etc/apache2/irods/)
+
+    install(FILES       README.md COPYING COPYING.LESSER changelog.txt
             DESTINATION /usr/share/doc/davrods-${DAVRODS_VERSION}/)
 
     install(DIRECTORY
             DESTINATION /var/lib/davrods)
 endif()
 
-if(INSTALLABLE_ON_THIS_SYSTEM)
+if(SYSTEM_LOOKS_LIKE STREQUAL "CentOS7")
     set(CPACK_MONOLITHIC_INSTALL 1)
     set(CPACK_CMAKE_GENERATOR "Unix Makefiles")
     set(CPACK_GENERATOR "RPM")
@@ -115,10 +156,7 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
     set(CPACK_PACKAGE_VENDOR "Utrecht University <fbyoda@uu.nl>")
     set(CPACK_PACKAGE_CONTACT "Utrecht University <fbyoda@uu.nl>")
     set(CPACK_PACKAGE_VERSION "${DAVRODS_VERSION}")
-    #set(CPACK_PACKAGE_VERSION_MAJOR "4")
-    #set(CPACK_PACKAGE_VERSION_MINOR "2")
-    #set(CPACK_PACKAGE_VERSION_PATCH "1")
-    set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/package/description.txt")
+    set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/aux/common/description.txt")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A DAV level 2 compliant Apache interface to iRODS")
 
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING.LESSER")
@@ -126,17 +164,18 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
 
     set(CPACK_RPM_PACKAGE_RELEASE "1")
     set(CPACK_RPM_PACKAGE_LICENSE "LGPLv3+")
-    set(CPACK_RPM_PACKAGE_REQUIRES "httpd >= 2.4, irods-runtime = ${IRODS_VERSION}")
+    set(CPACK_RPM_PACKAGE_REQUIRES "httpd >= 2.4, irods-runtime = ${IRODSRT_VERSION}")
     set(CPACK_RPM_PACKAGE_URL "https://github.com/UtrechtUniversity/davrods")
-    set(CPACK_RPM_CHANGELOG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/package/changelog.txt")
+    set(CPACK_RPM_CHANGELOG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/changelog.txt")
     set(CPACK_RPM_PACKAGE_AUTOREQ 0)
     set(CPACK_RPM_PACKAGE_AUTOPROV 0)
-    set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/package/postinst.sh")
+    set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/aux/rpm/postinst.sh")
 
     set(CPACK_RPM_USER_FILELIST
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/README.md"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/COPYING"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/COPYING.LESSER"
+        "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/changelog.txt"
         "%config(noreplace) /etc/httpd/conf.modules.d/10-davrods.conf"
         "%config(noreplace) /etc/httpd/conf.d/davrods-vhost.conf"
         "%config(noreplace) /etc/httpd/conf.d/davrods-anonymous-vhost.conf"
@@ -149,4 +188,28 @@ if(INSTALLABLE_ON_THIS_SYSTEM)
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}")
 
     include(CPack)
+
+elseif(SYSTEM_LOOKS_LIKE STREQUAL "Debian")
+    set(CPACK_MONOLITHIC_INSTALL 1)
+    set(CPACK_CMAKE_GENERATOR "Unix Makefiles")
+    set(CPACK_GENERATOR "DEB")
+    set(CPACK_PACKAGE_NAME "davrods")
+    set(CPACK_PACKAGE_VENDOR "Utrecht University <fbyoda@uu.nl>")
+    set(CPACK_PACKAGE_CONTACT "Utrecht University <fbyoda@uu.nl>")
+    set(CPACK_PACKAGE_VERSION "${DAVRODS_VERSION_DEB}")
+    set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/aux/common/description.txt")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A DAV level 2 compliant Apache interface to iRODS")
+
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING.LESSER")
+    set(CPACK_RESOURCE_FILE_README  "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+
+    set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "apache2 (>= 2.4), irods-runtime (= ${IRODSRT_VERSION})")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "httpd")
+    set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/aux/deb/postinst")
+
+    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
+
+    include(CPack)
+
 endif()

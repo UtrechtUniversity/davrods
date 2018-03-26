@@ -23,21 +23,39 @@ Themeable listings and anonymous access were inspired by Simon Tyrrell's
 
 ## Download ##
 
-There are currently two supported Davrods versions:
+Please choose the right version for your platform:
 
-- [`davrods-4.1_1.3.0`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.3.0), branch `irods-4.1-libs`
-- [`davrods-4.2.1_1.3.0`](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.3.0), branch `master`
+1. If you run Davrods on the same server as your iRODS service, you need a
+   Davrods version built against the same version iRODS *runtime*.
+2. If you run Davrods separately, on its own server, then the iRODS runtime
+   version does not matter - just pick the newest Davrods you can get.
+   All Davrods packages below should be compatible with any iRODS 4.x
+   server version.
 
-The left side of the version number indicates the version of the iRODS
-client libraries that Davrods uses.
+| Davrods ver. | iRODS runtime ver. | Packages                                                                          |
+| ------------ | ------------------ | --------------------------------------------------------------------------------- |
+| 1.4.0        | 4.2.2              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.2_1.4.0) |
+| 1.3.0        | 4.2.1              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.3.0)      |
+| 1.3.0        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.3.0)        |
+| 1.2.0        | 4.2.1              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.2.0)      |
+| 1.2.0        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.2.0)        |
+| 1.1.1        | 4.2.1              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.1.1)      |
+| 1.1.1        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.1.1)        |
 
-When installing Davrods on the same machine as an iRODS server, the
-version of Davrods must match the iRODS version. Otherwise, both Davrods
-versions listed above will work with either iRODS server version.
+If you require a certain Davrods/iRODS runtime version combination that
+is not listed above, you can most likely still build it yourself (see
+"Building from source").
+
+A log describing which features were added and which bugs were fixed in
+each version can be found in [changelog.txt](changelog.txt).
+
+We currently distribute RPM packages for CentOS 7 & RHEL systems and
+DEB packages for Debian & Ubuntu systems.
+We test our packages on CentOS 7 and (as of Davrods 1.4.0) Ubuntu 16.04.
 
 ## Installation ##
 
-This section describes the installation steps for `davrods-4.2.1_1.3.0`.
+This section describes the installation steps for `davrods-4.2.1_1.4.0`.
 
 To view instructions for `davrods-4.1_1.3.0`, switch to the
 [`irods-4.1-libs`](https://github.com/UtrechtUniversity/davrods/tree/irods-4.1-libs)
@@ -50,19 +68,19 @@ distributed at https://packages.irods.org/
 
 After following the instructions for adding the iRODS repository to your
 package manager at the link above, Davrods can be installed as a binary
-package using the RPM on the [releases page](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.3.0).
+package using the RPM or DEB file from the
+[releases page](https://github.com/UtrechtUniversity/davrods/releases)
+(use the table near the top of this README to select the right version).
 
 Download the Davrods package for your platform and install it using your
 package manager, for example:
 
-    yum install davrods-4.2.1_1.3.0-1.rpm
+    yum install davrods-4.2.2_1.4.0-1.rpm
+    --or--
+    dpkg -i davrods-4.2.2_1.4.0.deb
 
-We currently distribute RPM packages for CentOS 7 only.
-If you require packaging for a different platform, please contact us
-by creating an issue.
-
-See the __Configuration__ section for instructions on how to configure
-Davrods once it has been installed.
+Now see the __Configuration__ section for instructions on how to
+configure Davrods once it has been installed.
 
 ### Davrods and SELinux ##
 
@@ -168,9 +186,9 @@ cmake ..
 make
 ```
 
-Now you can either build an RPM or install the project without a package
-manager. Packaging for Linux distributions other than CentOS-likes is
-not yet supported.
+Now you can either build an RPM/DEB or install the project without a
+package manager. Packaging for Linux distributions other than
+CentOS-likes is not yet supported.
 
 **To create a package:**
 
@@ -178,8 +196,8 @@ not yet supported.
 make package
 ```
 
-That's it, you should now have an RPM in your build directory which you
-can install using yum.
+That's it, you should now have an RPM or DEB in your build directory
+which you can install using yum or apt.
 
 **To install without a package manager on CentOS:**
 
@@ -191,11 +209,23 @@ chown apache:apache /var/lib/davrods
 chmod 700 /var/lib/davrods
 ```
 
+**To install without a package manager on Debian:**
+
+Run the following as user root:
+
+```
+make install
+chown www-data:www-data /var/lib/davrods
+chmod 700 /var/lib/davrods
+```
+
 **To install without a package manager on other distros:**
 
-Distributions other than CentOS (e.g. Ubuntu) have different HTTPD
-configuration layouts, which are not yet supported by the build system.
-For this reason you will need to install the files manually:
+Linux distributions other than RHEL, Debian and their derivatives may
+have different HTTPD configuration and directory layouts, which are not
+currently supported by the build system.
+For this reason you will need to install the files manually on such
+Linux distributions:
 
 - Copy `mod_davrods.so` to your Apache module directory.
 - Copy `davrods.conf` to your Apache module configuration/load directory.
@@ -205,7 +235,7 @@ For this reason you will need to install the files manually:
   access.
 - Copy `irods_environment.json` to the `irods` directory.
 - Create directory `/var/lib/davrods`, and give apache exclusive access
-  to it: `chown apache:apache /var/lib/davrods; chmod 700 /var/lib/davrods`
+  to it.
 
 ## Bugs and ToDos ##
 
@@ -225,12 +255,12 @@ page.
 
 ## License ##
 
-Copyright (c) 2016, 2017, Utrecht University.
+Copyright (c) 2016 - 2018, Utrecht University.
 
 Davrods is licensed under the GNU Lesser General Public License version
 3 or higher (LGPLv3+). See the COPYING.LESSER file for details.
 
-The `lock_local.c` file was adapted from the source of `mod_dav_lock`,
-a component of Apache HTTPD, and is used with permission granted by
-the Apache License. See the copyright and license notices in this file
-for details.
+The `lock_local.c` and `byterange.c` files were adapted from components
+of Apache HTTPD, and are used with permission granted by the Apache
+License. See the copyright and license notices in these files for
+details.
