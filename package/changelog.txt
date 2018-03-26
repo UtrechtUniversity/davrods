@@ -1,3 +1,8 @@
+* Mon Mar 26 2018 Chris Smeele <c.j.smeele@uu.nl> - 4.2.2_1.4.0-1
+- Added Range header support (partial downloads)
+- Added support for auto-installs and packaging on Debian-based distros
+- Now supports iRODS 4.2.2 client libraries
+
 * Fri Sep 8 2017 Chris Smeele <c.j.smeele@uu.nl> - 4.2.1_1.3.0-1
 - Added support for themed listings
 - Fixed: Error in path handling when ExposedRoot is '/'
