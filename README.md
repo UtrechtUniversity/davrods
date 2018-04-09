@@ -77,7 +77,7 @@ package manager, for example:
 
     yum install davrods-4.2.2_1.4.0-1.rpm
     --or--
-    dpkg -i davrods-4.2.2_1.4.0.deb
+    apt install davrods-4.2.2_1.4.0.deb
 
 Now see the __Configuration__ section for instructions on how to
 configure Davrods once it has been installed.
@@ -109,9 +109,19 @@ The Davrods RPM distribution installs two vhost template files:
 1. `/etc/httpd/conf.d/davrods-vhost.conf`
 2. `/etc/httpd/conf.d/davrods-anonymous-vhost.conf`
 
+(for Ubuntu, replace `/etc/httpd/conf.d` with
+`/etc/apache2/sites-available`)
+
 These files are provided completely commented out. To enable either
 configuration, simply remove the first column of `#` signs, and then
 tune the settings to your needs.
+
+Note that on Ubuntu, you will additionally need to enable the Davrods
+module and vhosts, like so:
+
+    a2enmod davrods
+    a2ensite davrods_vhost
+    a2ensite davrods_anonymous_vhost
 
 The normal vhost configuration (1) provides sane defaults for
 authenticated access.
@@ -187,8 +197,7 @@ make
 ```
 
 Now you can either build an RPM/DEB or install the project without a
-package manager. Packaging for Linux distributions other than
-CentOS-likes is not yet supported.
+package manager.
 
 **To create a package:**
 
