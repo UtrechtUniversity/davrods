@@ -16,6 +16,7 @@ Notable features include:
 - Easy to configure using Apache configuration directives.
 - Supports an anonymous access mode for password-less public access.
 - Supports themeable directory listings for read-only web browser access.
+- Supports partial file up- and downloads and resumes (HTTP byte-ranges)
 - Supports iRODS server versions 4+ and is backwards compatible with 3.3.1.
 
 Themeable listings and anonymous access were inspired by Simon Tyrrell's
@@ -55,9 +56,10 @@ We test our packages on CentOS 7 and (as of Davrods 1.4.0) Ubuntu 16.04.
 
 ## Installation ##
 
-This section describes the installation steps for `davrods-4.2.1_1.4.0`.
+This section describes the installation steps for iRODS 4.2+ based
+Davrods releases.
 
-To view instructions for `davrods-4.1_1.3.0`, switch to the
+To view instructions for iRODS 4.1-based Davrods releases, switch to the
 [`irods-4.1-libs`](https://github.com/UtrechtUniversity/davrods/tree/irods-4.1-libs)
 branch.
 
