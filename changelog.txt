@@ -1,3 +1,6 @@
+* Wed Jul 11 2018 Chris Smeele <c.j.smeele@uu.nl> - 4.2.3_1.4.0-1
+- Now supports iRODS 4.2.3 client libraries
+
 * Mon Mar 26 2018 Chris Smeele <c.j.smeele@uu.nl> - 4.2.2_1.4.0-1
 - Added Range header support (partial downloads)
 - Added support for auto-installs and packaging on Debian-based distros
