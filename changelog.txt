@@ -1,3 +1,6 @@
+* Sun Jul 15 2018 Chris Smeele <c.j.smeele@uu.nl> - 4.2.3_1.4.1-1
+- Improved robustness of connection reuse
+
 * Wed Jul 11 2018 Chris Smeele <c.j.smeele@uu.nl> - 4.2.3_1.4.0-1
 - Now supports iRODS 4.2.3 client libraries
 

@@ -313,7 +313,82 @@ static authn_status rods_login(
     return result;
 }
 
-authn_status check_rods(request_rec *r, const char *username, const char *password) {
+// Check whether an open iRODS connection from a previous request can be reused
+// by a HTTP keepalive request.
+// For this to be permissible, we require that the current Davrods
+// configuration options regarding authentication matches the configuration
+// that was used in the previous request. In essence:
+//
+// 1. We must be using the same iRODS authentication scheme
+// 2. Our anonymous mode switches must be the same
+// 3. We must be using the same username with the same password
+//
+// This function is called in the following situations:
+// - From `check_rods` during HTTP basic auth when an existing connection is found.
+// - From repo.c `get_davrods_pool`.
+//
+// When username and password are NULL, they are not checked. This is used in
+// repo.c which has no direct access to the username and password used for the
+// current request. The check that the credentials are the same is then
+// performed elsewhere. See repo.c `get_davrods_pool` for details.
+//
+bool davrods_user_can_reuse_connection(request_rec *r,
+                                       const char *username,
+                                       const char *password) {
+    // Obtain davrods directory config.
+    davrods_dir_conf_t *conf = ap_get_module_config(
+        r->per_dir_config,
+        &davrods_module
+    );
+
+    void *m;
+
+    // Get davrods memory pool.
+    apr_pool_t *pool = NULL;
+    int status = apr_pool_userdata_get(&m, "davrods_pool", r->connection->pool);
+    pool   = (apr_pool_t*)m;
+
+    if (status || !pool)
+        return false; // No pool yet.
+
+    rcComm_t *rods_conn = NULL;
+    status = apr_pool_userdata_get(&m, "rods_conn", pool);
+    rods_conn = (rcComm_t*)m;
+
+    if (status || !rods_conn)
+        return false; // No iRODS connection set up yet.
+
+    davrods_session_parameters_t *session_params = NULL;
+    status = apr_pool_userdata_get((void**)&session_params, "session_params", pool);
+    assert(!status && session_params);
+
+    if (session_params->anon_mode != conf->anonymous_mode)
+        return false; // Disallow reusing a non-anonymous connection for
+                      // authorized access and vice versa.
+
+    if (session_params->auth_scheme != conf->rods_auth_scheme)
+        return false; // Disallow reusing a PAM authed connection for
+                      // Native authed access and vice versa.
+
+    char *current_username = NULL;
+    status = apr_pool_userdata_get((void**)&current_username, "username", pool);
+    assert(!status && current_username);
+
+    if (username && strcmp(current_username, username))
+        return false; // Disallow reusing a connection authed for user A
+                      // to be reused by user B.
+
+    char *current_password = NULL;
+    status = apr_pool_userdata_get((void**)&current_password, "password", pool);
+    assert(!status && current_password);
+
+    if (password && strcmp(current_password, password))
+        return false; // Password must match as well.
+
+    return true;
+}
+
+authn_status check_rods(request_rec *r, const char *username, const char *password, bool is_basic_auth) {
     int status;
 
     // Obtain davrods directory config.
@@ -368,8 +443,10 @@ authn_status check_rods(request_rec *r, const char *username, const char *passwo
     rods_conn = (rcComm_t*)m;
 
     if (!status && rods_conn) {
-        // We have an iRODS connection with an authenticated user. Was this
-        // auth check called with the same username as before?
+        // We have an open iRODS connection with an authenticated user.
+        // Can we safely reuse it for this request?
+        bool can_reuse = davrods_user_can_reuse_connection(r, username, password);
+
         char *current_username = NULL;
         status = apr_pool_userdata_get(&m, "username", pool);
         current_username = (char*)m;
@@ -379,12 +456,19 @@ authn_status check_rods(request_rec *r, const char *username, const char *passwo
                       "iRODS connection already open, authenticated user is '%s'",
                       current_username);
 
-        if (!strcmp(current_username, username)) {
-            // Yes. We will allow this user through regardless of the sent password.
+        if (can_reuse) {
+            // Yes!
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
                           "Granting access to already authenticated user on"
                           " existing iRODS connection");
             result = AUTH_GRANTED;
+
+            // Mark this request (note: r->pool, not pool) as being authed
+            // with user-supplied credentials.
+            apr_pool_userdata_set(r, // Dummy pointer, just need anything that isn't NULL.
+                                  "davrods_request_was_basic_authed",
+                                  apr_pool_cleanup_null,
+                                  r->pool);
 
         } else {
             // No! We need to reauthenticate to iRODS for the new user. Clean
@@ -396,6 +480,7 @@ authn_status check_rods(request_rec *r, const char *username, const char *passwo
                           username);
             // This should run the cleanup function for rods_conn, rcDisconnect.
             apr_pool_clear(pool);
+            rods_conn = NULL;
         }
     } else {
         rods_conn = NULL;
@@ -418,23 +503,47 @@ authn_status check_rods(request_rec *r, const char *username, const char *passwo
             }
 
             char *username_buf = apr_pstrdup(pool, username);
+            char *password_buf = apr_pstrdup(pool, password);
 
             apr_pool_userdata_set(rods_conn,    "rods_conn", rods_conn_cleanup,     pool);
             apr_pool_userdata_set(username_buf, "username",  apr_pool_cleanup_null, pool);
+            apr_pool_userdata_set(password_buf, "password",  apr_pool_cleanup_null, pool);
 
             // Get iRODS env and store it.
             rodsEnv *env = apr_palloc(pool, sizeof(rodsEnv));
             assert((status = getRodsEnv(env)) >= 0);
 
             apr_pool_userdata_set(env, "env", apr_pool_cleanup_null, pool);
+
+            // Store authentication info.
+            davrods_session_parameters_t *session_params
+                = apr_palloc(pool, sizeof(davrods_session_parameters_t));
+            assert(session_params);
+            session_params->auth_scheme = conf->rods_auth_scheme;
+            session_params->anon_mode   = conf->anonymous_mode;
+            apr_pool_userdata_set(session_params, "session_params", apr_pool_cleanup_null, pool);
+
+            if (is_basic_auth) {
+                // Mark this request (note: r->pool, not pool) as being authed
+                // with user-supplied credentials.
+                apr_pool_userdata_set(r, // Dummy pointer, just need anything that isn't NULL.
+                                      "davrods_request_was_basic_authed",
+                                      apr_pool_cleanup_null,
+                                      r->pool);
+            }
         }
     }
 
     return result;
 }
 
+authn_status basic_auth_irods(request_rec *r, const char *username, const char *password) {
+    return check_rods(r, username, password, true);
+}
+
+
 static const authn_provider authn_rods_provider = {
-    &check_rods,
+    &basic_auth_irods,
     NULL
 };
 
