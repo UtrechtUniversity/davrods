@@ -24,6 +24,25 @@
 
 #include "mod_davrods.h"
 
+// Configuration enums used in the Davrods config struct and elsewhere. {{{
+
+typedef enum davrods_auth_scheme_t {
+    DAVRODS_AUTH_NATIVE = 1,
+    DAVRODS_AUTH_PAM,
+} davrods_auth_scheme_t;
+
+typedef enum davrods_anon_mode_t {
+    DAVRODS_ANONYMOUS_MODE_OFF = 1,
+    DAVRODS_ANONYMOUS_MODE_ON,
+} davrods_anon_mode_t;
+
+typedef struct davrods_session_parameters_t {
+    davrods_auth_scheme_t auth_scheme;
+    davrods_anon_mode_t   anon_mode;
+} davrods_session_parameters_t;
+
+// }}}
+
 /**
  * \brief Davrods per-directory config structure.
  */
@@ -45,15 +64,9 @@ typedef struct {
 
     const char *locallock_lockdb_path;
 
-    enum {
-        DAVRODS_AUTH_NATIVE = 1,
-        DAVRODS_AUTH_PAM,
-    } rods_auth_scheme;
+    davrods_auth_scheme_t rods_auth_scheme;
 
-    enum {
-        DAVRODS_ANONYMOUS_MODE_OFF = 1,
-        DAVRODS_ANONYMOUS_MODE_ON,
-    } anonymous_mode;
+    davrods_anon_mode_t anonymous_mode;
 
     const char *anonymous_auth_username;
     const char *anonymous_auth_password;
