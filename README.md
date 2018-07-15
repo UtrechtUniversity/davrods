@@ -1,6 +1,10 @@
 Davrods - An Apache WebDAV interface to iRODS
 =============================================
 
+**NOTE**: The Davrods README on the iRODS 4.1 branch (this file) is not
+being actively maintained and may be out of date. Please see the master
+branch for up-to-date information.
+
 Davrods provides access to iRODS servers using the WebDAV protocol.
 It is a bridge between the WebDAV protocol and the iRODS API,
 implemented as an Apache HTTPD module.
