@@ -61,6 +61,8 @@ static const char *get_basename(const char *path) {
 /**
  * \brief Obtain the fully inited Davrods memory pool.
  *
+ * Called by get_resource, which is a sort of entrypoint into repo.c functions.
+ *
  * If Davrods is running with HTTP Basic auth enabled, then the pool
  * and the iRODS connection are set up by auth.c before we ever enter
  * repo.c. We can then simply return the pool from the request.
@@ -81,44 +83,135 @@ static const char *get_basename(const char *path) {
  */
 static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
 
+    // Get config.
+    davrods_dir_conf_t *conf = ap_get_module_config(
+        r->per_dir_config,
+        &davrods_module
+    );
+    assert(conf);
+
+    // Start by checking if we have an existing pool and rods_conn.
+    //
+    // - Davrods basic-authed connections will always have an existing rods_conn
+    //   as set up in auth.c (if auth failed, this code cannot be reached).
+    //
+    // - Anonymous-mode connections may or may not have an existing pool and rods_conn.
+    //   It depends on whether this is a keep-alive request.
+    //
+    // In this function we short-circuit return if we find a securely reusable
+    // connection.
+
     *pool = NULL;
     int status = apr_pool_userdata_get((void**)pool, "davrods_pool", r->connection->pool);
-    if (status == 0 && *pool) {
-        // OK!
-        return NULL;
+    if (!status && *pool) {
+        // We have a pool.
+
+        rcComm_t *rods_conn = NULL;
+        status = apr_pool_userdata_get((void**)&rods_conn, "rods_conn", *pool);
+
+        if (!status && rods_conn) {
+            // We have a rods_conn.
+
+            if (conf->anonymous_mode == DAVRODS_ANONYMOUS_MODE_ON) {
+                // Anonymous mode. The existing rods_conn must have been opened
+                // in anon mode as well.
+
+                // Check whether the anon switch, auth scheme, and anon creds
+                // are the same for this vhost/directory and the context of the
+                // existing connection.
+                bool can_reuse
+                    = davrods_user_can_reuse_connection(r,
+                                                        conf->anonymous_auth_username,
+                                                        conf->anonymous_auth_password);
+                if (can_reuse)
+                    // All is fine.
+                    return NULL;
+
+            } else {
+                // Okay, so we want to reuse a rods_conn for authenticated access.
+                // The existing connection must have been opened for the same
+                // user with the same configuration.
+
+                // First check whether the configuration is the same (anon
+                // switch, auth scheme).
+                // We don't have direct access to the username and password of
+                // the current request, so we can't check them here...
+                bool can_reuse_maybe
+                    = davrods_user_can_reuse_connection(r, NULL, NULL);
+
+                if (can_reuse_maybe) {
+                    // ... However, we *can* verify that the current request has
+                    // passed Davrods basic authentication, by checking a
+                    // request-scoped flag set in auth.c:
+
+                    // The flag is set only on the main request, so select it
+                    // if r is a subrequest.
+                    request_rec *main_req = r->main ? r->main : r;
+
+                    // The value is meaningless, the pointer just needs to be non-zero.
+                    void *flag_val = NULL;
+                    status = apr_pool_userdata_get(&flag_val,
+                                                   "davrods_request_was_basic_authed",
+                                                   main_req->pool);
+                                                   // note: request pool, not conn pool or davrods pool.
+                    if (status == 0 && flag_val) {
+                        // The flag exists: This signals that auth.c has already
+                        // verified reusability and has set up the davrods pool
+                        // correctly.
+                        return NULL;
+
+                    } else {
+                        // This request is not basic-authed, yet anonymous mode is turned off.
+                        // This is likely a configuration error.
+                    }
+                }
+            }
+        } else { /* No existing connection */ }
+    } else { /* No existing pool */ }
+
+    // If we get here, we do not have a reusable connection.
+    // If this is *not* anonymous mode, then someone messed up the
+    // configuration: They need to have either Davrods basic auth or anonymous
+    // mode enabled.
+
+    if (conf->anonymous_mode == DAVRODS_ANONYMOUS_MODE_ON) {
+
+        // Authenticate as the anonymous user.
+
+        authn_status result = check_rods(r,
+                                         conf->anonymous_auth_username,
+                                         conf->anonymous_auth_password,
+                                         false);
+
+        if (result == AUTH_GRANTED) {
+            int status = apr_pool_userdata_get((void**)pool, "davrods_pool", r->connection->pool);
+            assert(status == 0 && *pool); // Logic error - pool must have been set by auth module.
+
+            // That was easy!
+            return NULL;
+
+        } else {
+            // No valid anonymous mode credentials.
+            //
+            // 401 and 403 are not appropriate for this error - it
+            // is a configuration issue, not something that can
+            // be resolved by the user.
+
+            return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
+                                 "Anonymous mode is enabled but Davrods couldn't log in "
+                                 "with the configured anonymous credentials (option DavRodsAnonymousLogin) "
+                                 "and the configured auth scheme (option DavRodsAuthScheme).");
+        }
 
     } else {
-        // Not authenticated yet.
-        davrods_dir_conf_t *conf = ap_get_module_config(
-            r->per_dir_config,
-            &davrods_module
-        );
-        assert(conf);
 
-        if (conf->anonymous_mode == DAVRODS_ANONYMOUS_MODE_ON) {
+        // No basic auth and no anonymous mode either.
+        // What do you expect us to do?
 
-            authn_status result = check_rods(r, conf->anonymous_auth_username, conf->anonymous_auth_password);
-
-            if (result == AUTH_GRANTED) {
-                int status = apr_pool_userdata_get((void**)pool, "davrods_pool", r->connection->pool);
-                assert(status == 0 && *pool); // Logic error - pool must have been set by auth module.
-                return NULL;
-            } else {
-                // 401 and 403 are not appropriate for this error - it
-                // is a configuration issue, not something that can
-                // be resolved by the user.
-                return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
-                                     "Anonymous mode is enabled but Davrods couldn't log in "
-                                     "with the configured anonymous credentials (option DavRodsAnonymousLogin) "
-                                     "and the configured auth scheme (option DavRodsAuthScheme).");
-            }
-        } else {
-            // No basic auth and no anonymous mode. What do you expect us to do?
-            return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
-                                "iRODS connection could not be set up due to a configuration error: "
-                                 "Either enable anonymous access mode (DavRodsAnonymousMode On) "
-                                 "or enable Davrods' basic auth provider (Require valid-user, AuthType Basic, AuthBasicProvider irods).");
-        }
+        return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
+                             "iRODS connection could not be set up due to a configuration error: "
+                             "Either enable anonymous access mode (DavRodsAnonymousMode On, Require all granted) "
+                             "or enable Davrods' basic auth provider (Require valid-user, AuthType Basic, AuthBasicProvider irods).");
     }
 }
 

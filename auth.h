@@ -25,7 +25,14 @@
 #include "mod_davrods.h"
 #include <mod_auth.h>
 
-authn_status check_rods(request_rec *r, const char *username, const char *password);
+authn_status check_rods(request_rec *r,
+                        const char *username,
+                        const char *password,
+                        bool is_basic_auth);
+
+bool davrods_user_can_reuse_connection(request_rec *r,
+                                       const char *username,
+                                       const char *password);
 
 void davrods_auth_register(apr_pool_t *p);
 
