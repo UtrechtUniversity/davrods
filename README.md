@@ -16,6 +16,7 @@ Notable features include:
 - Easy to configure using Apache configuration directives.
 - Supports an anonymous access mode for password-less public access.
 - Supports themeable directory listings for read-only web browser access.
+- Supports partial file up- and downloads and resumes (HTTP byte-ranges)
 - Supports iRODS server versions 4+ and is backwards compatible with 3.3.1.
 
 Themeable listings and anonymous access were inspired by Simon Tyrrell's
