@@ -1126,6 +1126,82 @@ static dav_error *deliver_file(
 }
 
 /**
+ * \brief Encode a path such that it can be safely used in a URI.
+ *
+ * Used within HTML directory listings.
+ * If the input path is safe, no new string is allocated.
+ *
+ * \param pool A memory pool
+ * \param path The path to escape
+ *
+ * \return An escaped path (may be the same as the input pointer)
+ */
+static const char *escape_uri_path(
+    apr_pool_t *pool,
+    const char *path
+) {
+    // Apache's ap_escape_uri is not sufficient, as it is OS-dependent(!?) and
+    // does not encode certain reserved characters that can be problematic in
+    // relative URLs.
+    //
+    // Given the lack of an Apache function that does what we need, we do URL
+    // encoding ourselves, as per RFC 1808:
+    // https://tools.ietf.org/html/rfc1808 (page 4)
+    //
+    // We encode everything outside of the 'unreserved' character class, except for '/'.
+    // That is, every char not in [a-zA-Z0-9$_.+!*'(),/-].
+
+    static const char escape_table[256] = {
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,0,1,1,0,1,1,0,0,0,0,0,0,0,0,0, //  !"#$%&'()*+,-./
+        0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1, // 0123456789:;<=>?
+        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // @ABCDEFGHIJKLMNO
+        0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0, // PQRSTUVWXYZ[\]^_
+        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // `abcdefghijklmno
+        0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1, // pqrstuvwxyz{|}~
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    };
+
+    size_t length_orig    = strlen(path);
+    size_t reserved_count = 0;
+
+    for (size_t i = 0; i < length_orig; ++i) {
+        if (escape_table[(unsigned char)path[i]])
+            ++reserved_count;
+    }
+
+    if (!reserved_count)
+        return path; // Nothing to escape.
+
+    // Each reserved char will take up 2 extra characters ('&' => '%26').
+    size_t length_new = length_orig + reserved_count*2;
+
+    char *new_path = apr_pcalloc(pool, length_new + 1);
+    assert(new_path);
+    for (size_t i = 0, j = 0;
+         i < length_orig && j < length_new;
+         ++i) {
+
+        if (escape_table[(unsigned char)path[i]]) {
+            sprintf(new_path + j, "%%%.2X", (unsigned char)path[i]);
+            j += 3;
+        } else {
+            new_path[j++] = path[i];
+        }
+    }
+
+    return new_path;
+}
+
+/**
  * \brief Within a HTML directory listing, insert the contents of a local file.
  *
  * \param resource Provides context, pool etc.
@@ -1251,8 +1327,8 @@ static dav_error *deliver_directory(
                        ap_escape_html(pool, resource->info->relative_uri),
                        uri_ends_with_slash ? "" : "/",
                        ap_escape_html(pool, resource->info->conf->rods_zone),
-                       ap_escape_html(pool, ap_escape_uri(pool, root_dir_without_trailing_slash)),
-                       ap_escape_html(pool, ap_escape_uri(pool, resource->info->relative_uri)),
+                       ap_escape_html(pool, escape_uri_path(pool, root_dir_without_trailing_slash)),
+                       ap_escape_html(pool, escape_uri_path(pool, resource->info->relative_uri)),
                        uri_ends_with_slash ? "" : "/"); // Append a slash to fix relative links on this page.
 
     deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_head);
@@ -1283,8 +1359,8 @@ static dav_error *deliver_directory(
                 *p = '\0';
                 apr_brigade_printf(bb, NULL, NULL,
                                    "<a href=\"%s%s/\">%s</a>%s",
-                                   ap_escape_html(pool, ap_escape_uri(pool, root_dir_without_trailing_slash)),
-                                   ap_escape_html(pool, ap_escape_uri(pool, path)),
+                                   ap_escape_html(pool, escape_uri_path(pool, root_dir_without_trailing_slash)),
+                                   ap_escape_html(pool, escape_uri_path(pool, path)),
                                    p == path ? "/" : ap_escape_html(pool, part+1),
                                    p == path ? ""  : "/");
                 *p = '/';
@@ -1365,11 +1441,11 @@ static dav_error *deliver_directory(
             if (coll_entry.objType == COLL_OBJ_T) {
                 // Collection links need a trailing slash for the '..' links to work correctly.
                 apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s/\">%s/</a></td>",
-                                   ap_escape_html(pool, ap_escape_uri(pool, name)),
+                                   ap_escape_html(pool, escape_uri_path(pool, name)),
                                    ap_escape_html(pool, name));
             } else {
                 apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s\">%s</a></td>",
-                                   ap_escape_html(pool, ap_escape_uri(pool, name)),
+                                   ap_escape_html(pool, escape_uri_path(pool, name)),
                                    ap_escape_html(pool, name));
             }
 
