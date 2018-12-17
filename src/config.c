@@ -125,7 +125,8 @@ void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
     DAVRODS_PROP_MERGE(anonymous_auth_username);
     DAVRODS_PROP_MERGE(anonymous_auth_password);
 
-    assert(set_exposed_root(conf, exposed_root) >= 0);
+    { int ret = set_exposed_root(conf, exposed_root);
+      assert(ret >= 0); }
 
     DAVRODS_PROP_MERGE(html_head);
     DAVRODS_PROP_MERGE(html_header);
