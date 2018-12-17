@@ -84,6 +84,8 @@ void *davrods_create_dir_config(apr_pool_t *p, char *dir) {
         conf->html_head   = "";
         conf->html_header = "";
         conf->html_footer = "";
+
+        conf->force_download = DAVRODS_FORCE_DOWNLOAD_OFF;
     }
     return conf;
 }
@@ -123,11 +125,14 @@ void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
     DAVRODS_PROP_MERGE(anonymous_auth_username);
     DAVRODS_PROP_MERGE(anonymous_auth_password);
 
-    assert(set_exposed_root(conf, exposed_root) >= 0);
+    { int ret = set_exposed_root(conf, exposed_root);
+      assert(ret >= 0); }
 
     DAVRODS_PROP_MERGE(html_head);
     DAVRODS_PROP_MERGE(html_header);
     DAVRODS_PROP_MERGE(html_footer);
+
+    DAVRODS_PROP_MERGE(force_download);
 
 #undef DAVRODS_PROP_MERGE
 
@@ -388,6 +393,24 @@ static const char *cmd_davrodshtmlfooter(
     return NULL;
 }
 
+static const char *cmd_davrodsforcedownload(
+    cmd_parms *cmd, void *config,
+    const char *arg1
+) {
+    davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
+
+    if (!strcasecmp(arg1, "on")) {
+        conf->force_download = DAVRODS_FORCE_DOWNLOAD_ON;
+    } else if (!strcasecmp(arg1, "off")) {
+        conf->force_download = DAVRODS_FORCE_DOWNLOAD_OFF;
+    } else {
+        return "This directive accepts only 'On' and 'Off' values";
+    }
+
+    return NULL;
+}
+
+
 // }}}
 
 const command_rec davrods_directives[] = {
@@ -454,6 +477,10 @@ const command_rec davrods_directives[] = {
     AP_INIT_TAKE1(
         DAVRODS_CONFIG_PREFIX "HtmlFooter", cmd_davrodshtmlfooter,
         NULL, ACCESS_CONF, "File that's inserted into HTML directory listings, in the body tag"
+    ),
+    AP_INIT_TAKE1(
+        DAVRODS_CONFIG_PREFIX "ForceDownload", cmd_davrodsforcedownload,
+        NULL, ACCESS_CONF, "When On, prevents inline display of files in web browsers"
     ),
 
     { NULL }

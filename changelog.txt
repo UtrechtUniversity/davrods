@@ -1,3 +1,8 @@
+* Mon Dec 17 2018 Chris Smeele <c.j.smeele@uu.nl> - 4.2.4_1.4.2-1
+- Fixed DavrodsExposedRoot config being ignored in some builds
+- Added a Content-Disposition configuration setting (off by default)
+- Fixed a URL encoding issue for relative paths in directory listings
+
 * Sun Jul 15 2018 Chris Smeele <c.j.smeele@uu.nl> - 4.2.3_1.4.1-1
 - Improved robustness of connection reuse
 
