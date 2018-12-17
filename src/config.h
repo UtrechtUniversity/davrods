@@ -86,6 +86,13 @@ typedef struct {
     const char *html_header;
     const char *html_footer;
 
+    enum {
+        // Relevant only for webbrowser-style clients.
+        // Prevents inline display of data objects.
+        DAVRODS_FORCE_DOWNLOAD_OFF = 1,
+        DAVRODS_FORCE_DOWNLOAD_ON,
+    } force_download;
+
 } davrods_dir_conf_t;
 
 extern const command_rec davrods_directives[];

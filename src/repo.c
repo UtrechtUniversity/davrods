@@ -1050,6 +1050,14 @@ static dav_error *dav_repo_set_headers(
         // This will be overwritten in byterange.c if the request turns out to be
         // a valid range request.
         ap_set_content_length(r, resource->info->stat->objSize);
+
+        davrods_dir_conf_t *conf = ap_get_module_config(r->per_dir_config,
+                                                        &davrods_module);
+        assert(conf);
+
+        if (conf->force_download == DAVRODS_FORCE_DOWNLOAD_ON)
+            // Prevent inline display of files in web browsers.
+            apr_table_setn(r->headers_out, "Content-Disposition", "attachment");
     }
 
     return 0;
