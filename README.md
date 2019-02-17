@@ -125,6 +125,7 @@ tune the settings to your needs.
 Note that on Ubuntu, you will additionally need to enable the Davrods
 module and vhosts, like so:
 
+    a2enmod dav
     a2enmod davrods
     a2ensite davrods_vhost
     a2ensite davrods_anonymous_vhost
