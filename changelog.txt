@@ -1,3 +1,6 @@
+* Wed Apr 03 2019 Chris Smeele <c.j.smeele@uu.nl> - 4.2.5_1.4.2-1
+- Now supports iRODS 4.2.5 client libraries
+
 * Mon Dec 17 2018 Chris Smeele <c.j.smeele@uu.nl> - 4.2.4_1.4.2-1
 - Fixed DavrodsExposedRoot config being ignored in some builds
 - Added a Content-Disposition configuration setting (off by default)
