@@ -128,8 +128,8 @@ module and vhosts, like so:
 
     a2enmod dav
     a2enmod davrods
-    a2ensite davrods_vhost
-    a2ensite davrods_anonymous_vhost
+    a2ensite davrods-vhost
+    a2ensite davrods-anonymous-vhost
 
 The normal vhost configuration (1) provides sane defaults for
 authenticated access.
