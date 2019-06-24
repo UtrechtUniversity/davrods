@@ -1,3 +1,6 @@
+* Sun Jun 23 2019 Chris Smeele <c.j.smeele@uu.nl> - 4.2.6_1.4.2-1
+- Now supports iRODS 4.2.6 client libraries
+
 * Wed Apr 03 2019 Chris Smeele <c.j.smeele@uu.nl> - 4.2.5_1.4.2-1
 - Now supports iRODS 4.2.5 client libraries
 
