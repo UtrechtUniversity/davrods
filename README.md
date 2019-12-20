@@ -33,21 +33,17 @@ Please choose the right version for your platform:
    All Davrods packages below should be compatible with any iRODS 4.x
    server version.
 
-| Davrods ver. | iRODS runtime ver. | Packages                                                                          |
-| ------------ | ------------------ | --------------------------------------------------------------------------------- |
-| 1.4.2        | 4.2.6              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.6_1.4.2) |
-| 1.4.2        | 4.2.5              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.5_1.4.2) |
-| 1.4.2        | 4.2.4              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.4_1.4.2) |
-| 1.4.1        | 4.2.3              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.3_1.4.1) |
-| 1.4.1        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.4.1)        |
-| 1.4.0        | 4.2.3              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.3_1.4.0) |
-| 1.4.0        | 4.2.2              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.2_1.4.0) |
-| 1.3.0        | 4.2.1              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.3.0)      |
-| 1.3.0        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.3.0)        |
-| 1.2.0        | 4.2.1              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.2.0)      |
-| 1.2.0        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.2.0)        |
-| 1.1.1        | 4.2.1              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.1_1.1.1)      |
-| 1.1.1        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.1.1)        |
+| Date        | Davrods ver. | iRODS runtime ver. | Packages                                                                          |
+| ----------- | ------------ | ------------------ | --------------------------------------------------------------------------------- |
+| 2019-12-20  | 1.4.2        | 4.2.7              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.7_1.4.2) |
+| 2019-06-20  | 1.4.2        | 4.2.6              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.6_1.4.2) |
+| 2019-04-03  | 1.4.2        | 4.2.5              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.5_1.4.2) |
+| 2018-12-17  | 1.4.2        | 4.2.4              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.4_1.4.2) |
+| 2018-07-15  | 1.4.1        | 4.2.3              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.3_1.4.1) |
+| 2018-07-15  | 1.4.1        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.4.1)        |
+
+(older versions are still available on the
+[releases page](https://github.com/UtrechtUniversity/davrods/releases))
 
 If you require a certain Davrods/iRODS runtime version combination that
 is not listed above, you can most likely still build it yourself (see
@@ -83,9 +79,9 @@ package using the RPM or DEB file from the
 Download the Davrods package for your platform and install it using your
 package manager, for example:
 
-    yum install davrods-4.2.6_1.4.2-1.rpm
+    yum install davrods-4.2.7_1.4.2-1.rpm
     --or--
-    apt install davrods-4.2.6_1.4.2.deb
+    apt install davrods-4.2.7_1.4.2.deb
 
 Now see the __Configuration__ section for instructions on how to
 configure Davrods once it has been installed.
@@ -273,7 +269,7 @@ page.
 
 ## License ##
 
-Copyright (c) 2016 - 2018, Utrecht University.
+Copyright (c) 2016 - 2019, Utrecht University.
 
 Davrods is licensed under the GNU Lesser General Public License version
 3 or higher (LGPLv3+). See the COPYING.LESSER file for details.

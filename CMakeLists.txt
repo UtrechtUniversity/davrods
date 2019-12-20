@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.12)
 
 project(davrods C)
 
-set(IRODSRT_VERSION "4.2.6" CACHE STRING "iRODS client library version")
+set(IRODSRT_VERSION "4.2.7" CACHE STRING "iRODS client library version")
 
 set(DAVRODS_FEATURE     "1.4.2")
 set(DAVRODS_VERSION     "${IRODSRT_VERSION}_${DAVRODS_FEATURE}")
