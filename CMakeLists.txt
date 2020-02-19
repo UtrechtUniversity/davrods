@@ -84,6 +84,7 @@ set(SOURCES
     src/prop.c
     src/propdb.c
     src/repo.c
+    src/listing.c
     src/lock_local.c
     src/byterange.c)
 
