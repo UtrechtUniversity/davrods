@@ -121,7 +121,7 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
         if (!status && rods_conn) {
             // We have a rods_conn.
 
-            if (conf->anonymous_mode == DAVRODS_ANONYMOUS_MODE_ON) {
+            if (DAVRODS_CONF(conf, anonymous_mode) == DAVRODS_ANONYMOUS_MODE_ON) {
                 // Anonymous mode. The existing rods_conn must have been opened
                 // in anon mode as well.
 
@@ -130,8 +130,8 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
                 // existing connection.
                 bool can_reuse
                     = davrods_user_can_reuse_connection(r,
-                                                        conf->anonymous_auth_username,
-                                                        conf->anonymous_auth_password);
+                                                        DAVRODS_CONF(conf, anonymous_auth_username),
+                                                        DAVRODS_CONF(conf, anonymous_auth_password));
                 if (can_reuse)
                     // All is fine.
                     return NULL;
@@ -183,13 +183,13 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
     // configuration: They need to have either Davrods basic auth or anonymous
     // mode enabled.
 
-    if (conf->anonymous_mode == DAVRODS_ANONYMOUS_MODE_ON) {
+    if (DAVRODS_CONF(conf, anonymous_mode) == DAVRODS_ANONYMOUS_MODE_ON) {
 
         // Authenticate as the anonymous user.
 
         authn_status result = check_rods(r,
-                                         conf->anonymous_auth_username,
-                                         conf->anonymous_auth_password,
+                                         DAVRODS_CONF(conf, anonymous_auth_username),
+                                         DAVRODS_CONF(conf, anonymous_auth_password),
                                          false);
 
         if (result == AUTH_GRANTED) {
@@ -330,30 +330,30 @@ static const char *get_rods_root(apr_pool_t *davrods_pool, request_rec *r) {
 
     const char *root = NULL;
 
-    if (conf->rods_exposed_root_type == DAVRODS_ROOT_ZONE_DIR) {
+    if (DAVRODS_CONF(conf, rods_exposed_root_type) == DAVRODS_ROOT_ZONE_DIR) {
         root = apr_pstrcat(davrods_pool,
-            "/", conf->rods_zone,
+            "/", DAVRODS_CONF(conf, rods_zone),
             NULL
         );
-    } else if (conf->rods_exposed_root_type == DAVRODS_ROOT_HOME_DIR) {
+    } else if (DAVRODS_CONF(conf, rods_exposed_root_type) == DAVRODS_ROOT_HOME_DIR) {
         root = apr_pstrcat(davrods_pool,
-            "/", conf->rods_zone, "/home",
+            "/", DAVRODS_CONF(conf, rods_zone), "/home",
             NULL
         );
-    } else if (conf->rods_exposed_root_type == DAVRODS_ROOT_USER_DIR) {
+    } else if (DAVRODS_CONF(conf, rods_exposed_root_type) == DAVRODS_ROOT_USER_DIR) {
         const char *username = NULL;
         int status = apr_pool_userdata_get((void**)&username, "username", davrods_pool);
         assert(status == 0 && username);
 
         root = apr_pstrcat(davrods_pool,
-            "/", conf->rods_zone, "/home/", username,
+            "/", DAVRODS_CONF(conf, rods_zone), "/home/", username,
             NULL
         );
     } else {
-        root = conf->rods_exposed_root;
+        root = DAVRODS_CONF(conf, rods_exposed_root);
     }
 
-    WHISPER("Determined rods root to be <%s> for this user (conf said <%s>)\n", root, conf->rods_exposed_root);
+    WHISPER("Determined rods root to be <%s> for this user (conf said <%s>)\n", root, DAVRODS_CONF(conf, rods_exposed_root));
 
     return root;
 }
@@ -616,7 +616,7 @@ static dav_error *dav_repo_open_stream(
         mode == DAV_MODE_WRITE_SEEKABLE
         || (
                mode == DAV_MODE_WRITE_TRUNC
-            && resource->info->conf->tmpfile_rollback == DAVRODS_TMPFILE_ROLLBACK_OFF
+            && DAVRODS_CONF(resource->info->conf, tmpfile_rollback) == DAVRODS_TMPFILE_ROLLBACK_OFF
         )
     ) {
         // Either way, do not use tmpfiles for rollback support.
@@ -670,9 +670,9 @@ static dav_error *dav_repo_open_stream(
 
     dataObjInp_t *open_params = &stream->open_params;
     // Set destination resource if it exists in our config.
-    if (resource->info->conf->rods_default_resource && strlen(resource->info->conf->rods_default_resource)) {
-        addKeyVal(&open_params->condInput, DEST_RESC_NAME_KW, resource->info->conf->rods_default_resource);
-    }
+    { const char *res = DAVRODS_CONF(resource->info->conf, rods_default_resource);
+      if (res && strlen(res))
+          addKeyVal(&open_params->condInput, DEST_RESC_NAME_KW, res); }
 
     strcpy(stream->open_params.objPath, stream->write_path);
 
@@ -731,7 +731,7 @@ static dav_error *dav_repo_open_stream(
 
     ap_log_rerror(
         APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, resource->info->r,
-        "Will write using %luK chunks", resource->info->conf->rods_tx_buffer_size / 1024
+        "Will write using %luK chunks", DAVRODS_CONF(resource->info->conf, rods_tx_buffer_size) / 1024
     );
 
     *result_stream = stream;
@@ -807,7 +807,7 @@ static dav_error *dav_repo_write_stream(
 
     if (!stream->container) {
         // Initialize the container.
-        stream->container_size = stream->resource->info->conf->rods_tx_buffer_size;
+        stream->container_size = DAVRODS_CONF(stream->resource->info->conf, rods_tx_buffer_size);
         stream->container_off  = 0;
 
         stream->container = apr_pcalloc(
@@ -1064,7 +1064,7 @@ static dav_error *dav_repo_set_headers(
                                                         &davrods_module);
         assert(conf);
 
-        if (conf->force_download == DAVRODS_FORCE_DOWNLOAD_ON)
+        if (DAVRODS_CONF(conf, force_download) == DAVRODS_FORCE_DOWNLOAD_ON)
             // Prevent inline display of files in web browsers.
             apr_table_setn(r->headers_out, "Content-Disposition", "attachment");
     }
@@ -1628,13 +1628,11 @@ static dav_error *dav_copy_walk_callback(dav_walk_resource *wres, int calltype) 
         dataObjCopyInp_t copy_params = {{{ 0 }}};
 
         // Set destination resource if it exists in our config.
-        if (resource->info->conf->rods_default_resource && strlen(resource->info->conf->rods_default_resource)) {
-            addKeyVal(
-                &copy_params.destDataObjInp.condInput,
-                DEST_RESC_NAME_KW,
-                resource->info->conf->rods_default_resource
-            );
-        }
+        { const char *res = DAVRODS_CONF(resource->info->conf, rods_default_resource);
+          if (res && strlen(res))
+              addKeyVal(&copy_params.destDataObjInp.condInput,
+                        DEST_RESC_NAME_KW,
+                        res); }
 
         dataObjInp_t *obj_src = &copy_params.srcDataObjInp;
         dataObjInp_t *obj_dst = &copy_params.destDataObjInp;

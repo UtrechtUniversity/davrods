@@ -226,23 +226,18 @@ dav_error *davrods_deliver_directory_listing(
                        "<base href=\"%s%s%s\">\n",
                        ap_escape_html(pool, resource->info->relative_uri),
                        uri_ends_with_slash ? "" : "/",
-                       ap_escape_html(pool, resource->info->conf->rods_zone),
+                       ap_escape_html(pool, DAVRODS_CONF(resource->info->conf, rods_zone)),
                        ap_escape_html(pool, escape_uri_path(pool, root_dir_without_trailing_slash)),
                        ap_escape_html(pool, escape_uri_path(pool, resource->info->relative_uri)),
                        uri_ends_with_slash ? "" : "/"); // Append a slash to fix relative links on this page.
 
-    deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_head);
+    deliver_directory_try_insert_local_file(resource, bb, DAVRODS_CONF(resource->info->conf, html_head));
 
     apr_brigade_puts(bb, NULL, NULL, "</head>\n<body>\n");
 
-    deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_header);
+    deliver_directory_try_insert_local_file(resource, bb, DAVRODS_CONF(resource->info->conf, html_header));
 
-    apr_brigade_puts(bb, NULL, NULL,
-                     "<!-- Warning: Do not parse this directory listing programmatically,\n"
-                     "              the format may change without notice!\n"
-                     "              If you want to script access to these WebDAV collections,\n"
-                     "              please use the PROPFIND method instead. -->\n\n"
-                     "<h1>Index of <span class=\"relative-uri\">");
+    apr_brigade_puts(bb, NULL, NULL, "<h1>Index of <span class=\"relative-uri\">");
 
     {
         // Print breadcrumb path.
@@ -270,7 +265,7 @@ dav_error *davrods_deliver_directory_listing(
     }
 
     apr_brigade_printf(bb, NULL, NULL, "</span> on <span class=\"zone-name\">%s</span></h1>\n",
-                       ap_escape_html(pool, resource->info->conf->rods_zone));
+                       ap_escape_html(pool, DAVRODS_CONF(resource->info->conf, rods_zone)));
 
     if (strcmp(resource->info->relative_uri, "/") && resource->info->relative_uri[0])
         apr_brigade_puts(bb, NULL, NULL, "<p><a class=\"parent-link\" href=\"..\">Parent collection</a></p>\n");
@@ -394,7 +389,7 @@ dav_error *davrods_deliver_directory_listing(
 
     apr_brigade_puts(bb, NULL, NULL, "</tbody>\n</table>\n");
 
-    deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_footer);
+    deliver_directory_try_insert_local_file(resource, bb, DAVRODS_CONF(resource->info->conf, html_footer));
 
     // End HTML document.
     apr_brigade_puts(bb, NULL, NULL, "</body>\n</html>\n");

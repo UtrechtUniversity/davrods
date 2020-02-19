@@ -47,6 +47,7 @@ typedef struct davrods_session_parameters_t {
  * \brief Davrods per-directory config structure.
  */
 typedef struct {
+    // A zero / NULL value indicates an unset option.
     const char *rods_host;
     uint16_t    rods_port;
     const char *rods_zone;
@@ -57,7 +58,7 @@ typedef struct {
     size_t      rods_rx_buffer_size;
 
     enum {
-        // Need to have something other than a bool to recognize an 'unset' state.
+        // Need to have something other than a bool to recognize the 'unset' state.
         DAVRODS_TMPFILE_ROLLBACK_OFF = 1,
         DAVRODS_TMPFILE_ROLLBACK_ON,
     } tmpfile_rollback;
@@ -94,6 +95,11 @@ typedef struct {
     } force_download;
 
 } davrods_dir_conf_t;
+
+extern const davrods_dir_conf_t default_config;
+
+// Access configuration. Fall back to default config if a value is 0/NULL.
+#define DAVRODS_CONF(x, y) ((x)->y ? (x)->y : default_config.y)
 
 extern const command_rec davrods_directives[];
 

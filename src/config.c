@@ -42,52 +42,61 @@ static int set_exposed_root(davrods_dir_conf_t *conf, const char *exposed_root) 
     return 0;
 }
 
+/// A set of default configuration options.
+/// Keep these values in sync with the example vhost files.
+/// Note that changes to default values are breaking changes.
+const davrods_dir_conf_t default_config = {
+    // We have no 'enabled' flag. Module activation is triggered by
+    // directives 'AuthBasicProvider irods' and 'Dav irods'.
+    .rods_host              = "localhost",
+    .rods_port              = 1247,
+    .rods_zone              = "tempZone",
+    .rods_default_resource  = "",
+    // The default path should ideally be based on the known(?) location of
+    // Apache's config dir, distro-dependent...
+    .rods_env_file          = "/etc/httpd/irods/irods_environment.json",
+    .rods_auth_scheme       = DAVRODS_AUTH_NATIVE,
+
+    // Default to having the user's home directory as the exposed root
+    // because that collection is more or less guaranteed to be readable by
+    // the current user (as opposed to the /<zone>/home directory, which
+    // is hidden for rodsusers by default).
+    .rods_exposed_root      = "User", // NOTE: Keep this in sync with the option below.
+    .rods_exposed_root_type = DAVRODS_ROOT_USER_DIR,
+
+    // Default to 4 MiB buffer sizes, which is a good balance
+    // between resource usage and transfer performance in common
+    // setups.
+    .rods_tx_buffer_size    = 4 * 1024 * 1024,
+    .rods_rx_buffer_size    = 4 * 1024 * 1024,
+
+    .tmpfile_rollback       = DAVRODS_TMPFILE_ROLLBACK_OFF,
+    .locallock_lockdb_path  = "/var/lib/davrods/lockdb_locallock",
+
+    .anonymous_mode          = DAVRODS_ANONYMOUS_MODE_OFF,
+    .anonymous_auth_username = "anonymous",
+    .anonymous_auth_password = "",
+
+    // Use the minimum PAM temporary password TTL. We
+    // re-authenticate using PAM on every new HTTP connection, so
+    // there's no use keeping the temporary password around for
+    // longer than the maximum keepalive time. (We don't ever use
+    // a temporary password more than once).
+    .rods_auth_ttl = 1, // In hours.
+
+    .html_head   = "",
+    .html_header = "",
+    .html_footer = "",
+
+    .force_download = DAVRODS_FORCE_DOWNLOAD_OFF,
+};
+
 void *davrods_create_dir_config(apr_pool_t *p, char *dir) {
-    davrods_dir_conf_t *conf = apr_pcalloc(p, sizeof(davrods_dir_conf_t));
-    if (conf) {
-        // We have no 'enabled' flag. Module activation is triggered by
-        // directives 'AuthBasicProvider irods' and 'Dav irods'.
-        conf->rods_host              = "localhost";
-        conf->rods_port              = 1247;
-        conf->rods_zone              = "tempZone";
-        conf->rods_default_resource  = "";
-        conf->rods_env_file          = "/etc/httpd/irods/irods_environment.json";
-        conf->rods_auth_scheme       = DAVRODS_AUTH_NATIVE;
-
-        // Default to having the user's home directory as the exposed root
-        // because that collection is more or less guaranteed to be readable by
-        // the current user (as opposed to the /<zone>/home directory, which
-        // is hidden for rodsusers by default).
-        conf->rods_exposed_root      = "User"; // NOTE: Keep this in sync with the option below.
-        conf->rods_exposed_root_type = DAVRODS_ROOT_USER_DIR;
-
-        // Default to 4 MiB buffer sizes, which is a good balance
-        // between resource usage and transfer performance in common
-        // setups.
-        conf->rods_tx_buffer_size    = 4 * 1024 * 1024;
-        conf->rods_rx_buffer_size    = 4 * 1024 * 1024;
-
-        conf->tmpfile_rollback       = DAVRODS_TMPFILE_ROLLBACK_OFF;
-        conf->locallock_lockdb_path  = "/var/lib/davrods/lockdb_locallock";
-
-        conf->anonymous_mode          = DAVRODS_ANONYMOUS_MODE_OFF;
-        conf->anonymous_auth_username = "anonymous";
-        conf->anonymous_auth_password = "";
-
-        // Use the minimum PAM temporary password TTL. We
-        // re-authenticate using PAM on every new HTTP connection, so
-        // there's no use keeping the temporary password around for
-        // longer than the maximum keepalive time. (We don't ever use
-        // a temporary password more than once).
-        conf->rods_auth_ttl = 1; // In hours.
-
-        conf->html_head   = "";
-        conf->html_header = "";
-        conf->html_footer = "";
-
-        conf->force_download = DAVRODS_FORCE_DOWNLOAD_OFF;
-    }
-    return conf;
+    // Zeroed configuration => default value is used for everything.
+    // This allows us to detect whether a config value was actually set for a
+    // given directory, and properly allow unset options to be overridden
+    // during a config merge.
+    return apr_pcalloc(p, sizeof(davrods_dir_conf_t));
 }
 
 void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
@@ -95,19 +104,19 @@ void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
     davrods_dir_conf_t *child  = _child;
     davrods_dir_conf_t *conf   = davrods_create_dir_config(p, "merge__");
 
-#define DAVRODS_PROP_MERGE(_prop) \
+#define MERGE(_prop) \
     conf->_prop = child->_prop \
         ? child->_prop \
         : parent->_prop \
             ? parent->_prop \
             : conf->_prop
 
-    DAVRODS_PROP_MERGE(rods_host);
-    DAVRODS_PROP_MERGE(rods_port);
-    DAVRODS_PROP_MERGE(rods_zone);
-    DAVRODS_PROP_MERGE(rods_default_resource);
-    DAVRODS_PROP_MERGE(rods_env_file);
-    DAVRODS_PROP_MERGE(rods_auth_scheme);
+    MERGE(rods_host);
+    MERGE(rods_port);
+    MERGE(rods_zone);
+    MERGE(rods_default_resource);
+    MERGE(rods_env_file);
+    MERGE(rods_auth_scheme);
 
     const char *exposed_root = child->rods_exposed_root
         ? child->rods_exposed_root
@@ -115,26 +124,26 @@ void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
             ? parent->rods_exposed_root
             : conf->rods_exposed_root;
 
-    DAVRODS_PROP_MERGE(rods_tx_buffer_size);
-    DAVRODS_PROP_MERGE(rods_rx_buffer_size);
+    MERGE(rods_tx_buffer_size);
+    MERGE(rods_rx_buffer_size);
 
-    DAVRODS_PROP_MERGE(tmpfile_rollback);
-    DAVRODS_PROP_MERGE(locallock_lockdb_path);
+    MERGE(tmpfile_rollback);
+    MERGE(locallock_lockdb_path);
 
-    DAVRODS_PROP_MERGE(anonymous_mode);
-    DAVRODS_PROP_MERGE(anonymous_auth_username);
-    DAVRODS_PROP_MERGE(anonymous_auth_password);
+    MERGE(anonymous_mode);
+    MERGE(anonymous_auth_username);
+    MERGE(anonymous_auth_password);
 
     { int ret = set_exposed_root(conf, exposed_root);
       assert(ret >= 0); }
 
-    DAVRODS_PROP_MERGE(html_head);
-    DAVRODS_PROP_MERGE(html_header);
-    DAVRODS_PROP_MERGE(html_footer);
+    MERGE(html_head);
+    MERGE(html_header);
+    MERGE(html_footer);
 
-    DAVRODS_PROP_MERGE(force_download);
+    MERGE(force_download);
 
-#undef DAVRODS_PROP_MERGE
+#undef MERGE
 
     return conf;
 }
