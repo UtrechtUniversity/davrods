@@ -145,18 +145,16 @@ The binary distribution installs the `irods_environment.json` file in
 `/etc/httpd/irods`. In most iRODS setups, this file can be used as
 is.
 
-Importantly, the first seven options (from `irods_host` up to and
-including `irods_zone_name`) are **not** read from this file. These
-settings are taken from their equivalent Davrods configuration
-directives in the vhost file instead.
+Importantly, options such as `irods_host` and `irods_zone_name` are
+**not** read from this file (and are omitted for that reason).
+These settings are taken from their equivalent Davrods configuration
+directives in the vhost config file instead.
 
-The options in the provided environment file starting from
-`irods_client_server_negotiation` *do* affect the behaviour of
-Davrods. See the official documentation for help on these settings at:
-https://docs.irods.org/4.2.1/system_overview/configuration/#irodsirods_environmentjson
+Options in `irods_environment.json` that are known to affect Davrods
+behavior are the negotiation, ssl and encryption settings.
 
-For instance, if you want Davrods to connect to iRODS 3.3.1, the
-`irods_client_server_negotiation` option must be set to `"none"`.
+See the official documentation for more information on these settings:
+https://docs.irods.org/4.2.7/system_overview/configuration/#irodsirods_environmentjson
 
 ## Building from source ##
 
