@@ -2,7 +2,7 @@
  * \file
  * \brief     Davrods configuration.
  * \author    Chris Smeele
- * \copyright Copyright (c) 2016, Utrecht University
+ * \copyright Copyright (c) 2016-2020, Utrecht University
  *
  * This file is part of Davrods.
  *
@@ -86,6 +86,11 @@ typedef struct {
     const char *html_head;
     const char *html_header;
     const char *html_footer;
+
+    enum {
+        DAVRODS_HTML_EMIT_TICKETS_OFF = 1,
+        DAVRODS_HTML_EMIT_TICKETS_ON,
+    } html_emit_tickets;
 
     enum {
         // Relevant only for webbrowser-style clients.

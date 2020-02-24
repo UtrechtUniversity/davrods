@@ -219,6 +219,28 @@ dav_error *davrods_deliver_directory_listing(
       if (len && root_dir_without_trailing_slash[len-1] == '/')
           root_dir_without_trailing_slash[len-1] = '\0'; }
 
+    // Construct a query string containing the current ticket to embed in links.
+
+    #define QPREFIX "?ticket="
+
+    // Query string will store prefix as-is + up to 3x max ticket length (3*100)
+    // (each 'X' encoded as '%NN') + a NUL.
+    char encoded_query_string[sizeof(QPREFIX)-1 + 100*3 + 1] = QPREFIX;
+    const char *ticket;
+    if (DAVRODS_CONF(resource->info->conf, html_emit_tickets) == DAVRODS_HTML_EMIT_TICKETS_ON
+     && (ticket = apr_table_get(resource->info->r->subprocess_env, "DAVRODS_TICKET"))
+     && ticket[0] && strlen(ticket) <= 100) {
+        // Only emit tickets if enabled in config (yes by default),
+        // there is a ticket set for this request (only possible with
+        // non-default apache config), and the ticket is non-empty and sane.
+
+        ap_escape_urlencoded_buffer(encoded_query_string+sizeof(QPREFIX)-1, ticket);
+    } else {
+        // No ticket, no query string.
+        encoded_query_string[0] = '\0';
+    }
+    #undef QPREFIX
+
     // Send start of HTML document.
     apr_brigade_printf(bb, NULL, NULL,
                        "<!DOCTYPE html>\n<html>\n<head>\n"
@@ -253,9 +275,10 @@ dav_error *davrods_deliver_directory_listing(
             if (*p == '/') {
                 *p = '\0';
                 apr_brigade_printf(bb, NULL, NULL,
-                                   "<a href=\"%s%s/\">%s</a>%s",
+                                   "<a href=\"%s%s/%s\">%s</a>%s",
                                    ap_escape_html(pool, escape_uri_path(pool, root_dir_without_trailing_slash)),
                                    ap_escape_html(pool, escape_uri_path(pool, path)),
+                                   encoded_query_string,
                                    p == path ? "/" : ap_escape_html(pool, part+1),
                                    p == path ? ""  : "/");
                 *p = '/';
@@ -268,7 +291,8 @@ dav_error *davrods_deliver_directory_listing(
                        ap_escape_html(pool, DAVRODS_CONF(resource->info->conf, rods_zone)));
 
     if (strcmp(resource->info->relative_uri, "/") && resource->info->relative_uri[0])
-        apr_brigade_puts(bb, NULL, NULL, "<p><a class=\"parent-link\" href=\"..\">Parent collection</a></p>\n");
+        apr_brigade_printf(bb, NULL, NULL, "<p><a class=\"parent-link\" href=\"..%s\">Parent collection</a></p>\n",
+                           encoded_query_string);
 
     apr_brigade_puts(bb, NULL, NULL,
                      "<table>\n<thead>\n"
@@ -335,12 +359,14 @@ dav_error *davrods_deliver_directory_listing(
             // Generate link.
             if (coll_entry.objType == COLL_OBJ_T) {
                 // Collection links need a trailing slash for the '..' links to work correctly.
-                apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s/\">%s/</a></td>",
+                apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s/%s\">%s/</a></td>",
                                    ap_escape_html(pool, escape_uri_path(pool, name)),
+                                   encoded_query_string,
                                    ap_escape_html(pool, name));
             } else {
-                apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s\">%s</a></td>",
+                apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s%s\">%s</a></td>",
                                    ap_escape_html(pool, escape_uri_path(pool, name)),
+                                   encoded_query_string,
                                    ap_escape_html(pool, name));
             }
 

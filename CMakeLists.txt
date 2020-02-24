@@ -115,7 +115,7 @@ if(SYSTEM_LOOKS_LIKE STREQUAL "CentOS7")
                         aux/common/listing/README.md
             DESTINATION /etc/httpd/irods/)
 
-    install(FILES       README.md COPYING COPYING.LESSER changelog.txt
+    install(FILES       README.md README.advanced.md COPYING COPYING.LESSER changelog.txt
             DESTINATION /usr/share/doc/davrods-${DAVRODS_VERSION}/)
 
     install(DIRECTORY
@@ -142,7 +142,7 @@ elseif(SYSTEM_LOOKS_LIKE STREQUAL "Debian")
                         aux/common/listing/README.md
             DESTINATION /etc/apache2/irods/)
 
-    install(FILES       README.md COPYING COPYING.LESSER changelog.txt
+    install(FILES       README.md README.advanced.md COPYING COPYING.LESSER changelog.txt
             DESTINATION /usr/share/doc/davrods-${DAVRODS_VERSION}/)
 
     install(DIRECTORY
@@ -174,6 +174,7 @@ if(SYSTEM_LOOKS_LIKE STREQUAL "CentOS7")
 
     set(CPACK_RPM_USER_FILELIST
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/README.md"
+        "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/README.advanced.md"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/COPYING"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/COPYING.LESSER"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/changelog.txt"

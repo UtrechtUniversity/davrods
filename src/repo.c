@@ -74,7 +74,7 @@ const char *davrods_get_basename(const char *path) {
  *
  * If Davrods is running with HTTP Basic auth enabled, then the pool
  * and the iRODS connection are set up by auth.c before we ever enter
- * repo.c. We can then simply return the pool from the request.
+ * repo.c. We can then simply return the pool from the connection.
  *
  * Otherwise, if Basic auth is disabled, then the first time this
  * function is entered in a HTTP connection, the pool and iRODS
@@ -423,7 +423,7 @@ static dav_error *get_dav_resource_rods_info(dav_resource *resource) {
             resource->exists = 0;
 
             ap_log_rerror(APLOG_MARK, APLOG_WARNING, APR_SUCCESS, r,
-                "Unknown iRODS object type <%d> for path <%s>! Will act as if it does not exist.",
+                "Unknown iRODS object type <%d> for path <%s>, ignored",
                 stat_out->objType,
                 res_private->rods_path
             );
@@ -435,6 +435,15 @@ static dav_error *get_dav_resource_rods_info(dav_resource *resource) {
 
 /**
  * \brief Create a DAV resource struct for the given request URI.
+ *
+ * For every WebDAV operation, this is the first Davrods function to be called
+ * by mod_dav. It may be called more than once for a single HTTP request. E.g.
+ * when handling a COPY request, dav_resource objects are created for both the
+ * source and the destination path.
+ *
+ * The output dav_resource object is passed by mod_dav as a handle to other
+ * Davrods functions. We attach our context to this object so that we can
+ * access it from those functions.
  *
  * \param      r               the request that lead to this resource
  * \param      root_dir        the root URI where Davrods lives (its <Location>)
@@ -451,7 +460,10 @@ static dav_error *dav_repo_get_resource(
     int use_checked_in,
     dav_resource **result_resource
 ) {
+    WHISPER("Get resource <%s>\n", r->uri);
+
     // Create private resource context {{{
+
     dav_resource_private *res_private;
     res_private = apr_pcalloc(r->pool, sizeof(*res_private));
     assert(res_private);
@@ -485,6 +497,70 @@ static dav_error *dav_repo_get_resource(
 
     WHISPER("Root dir is %s\n", root_dir);
     res_private->root_dir = root_dir;
+
+    // }}}
+    // Activate or deactivate iRODS tickets {{{
+
+    {   // Because tickets can be sent by HTTP clients in multiple ways, we
+        // delegate the parsing of incoming tickets to Apache configuration.
+        // Here, we only read an Apache (per-request) environment variable
+        // "DAVRODS_TICKET".
+        // This variable can for example be set conditionally using RewriteRule
+        // directives in the Davrods vhost config, based on request headers or
+        // query strings.
+        // In a default Davrods configuration, there is no way for a HTTP
+        // client to set such a variable, so in effect, ticket access is
+        // disabled by default.
+        //
+        // The iRODS server maintains a single active ticket as agent/session state.
+        // We keep track of the activated ticket locally (as part of keepalive
+        // state), so that we only need to make ticket API roundtrips when the
+        // current request's ticket differs from the active (keepalive) ticket.
+        //
+        // Note also that tickets are not additive with ACLs in iRODS, in the
+        // sense that when accessing an object with an active session ticket,
+        // ACLs on those objects related to your user do not necessarily apply.
+        // Submitting a ticket can actually reduce your level of access(!)
+        // Either way, it's important that we clear the session ticket if a
+        // keepalive request no longer bears a ticket.
+
+        // What's the active ticket? (NULL if unset)
+        const char *ticket, *active_ticket;
+        status = apr_pool_userdata_get((void*)&active_ticket,
+                                       "active_ticket", res_private->davrods_pool);
+        assert(status == 0);
+
+        // Take a ticket string from an Apache environment variable.
+        ticket = apr_table_get(r->subprocess_env, "DAVRODS_TICKET");
+
+        // Only send a ticket API request if this request's ticket differs from
+        // the previous one (if any).
+        if (!active_ticket) active_ticket = "";
+        if (!       ticket)        ticket = "";
+
+        WHISPER("Ticket: active-keepalive<%s> current-request<%s>\n", active_ticket, ticket);
+
+        if (strcmp(active_ticket, ticket)) {
+
+            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
+                          "%s session ticket", ticket[0] ? "Setting new" : "Clearing");
+
+            int status = rcTicketAdmin(res_private->rods_conn,
+                                       &(ticketAdminInp_t) {
+                                            .arg1 = "session",
+                                            .arg2 = (char*)ticket,
+                                            .arg3 = "", .arg4 = "", .arg5 = "", .arg6 = "" });
+            if (status != 0) {
+                // Note: iRODS does not report that a submitted ticket is invalid.
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, r,
+                              "Couldn't set session ticket: %s", get_rods_error_msg(status));
+            }
+
+            // Keep track of ticket state.
+            apr_pool_userdata_set(apr_pstrdup(res_private->davrods_pool, ticket),
+                                  "active_ticket", NULL, res_private->davrods_pool);
+        }
+    }
 
     // }}}
     // Create DAV resource {{{

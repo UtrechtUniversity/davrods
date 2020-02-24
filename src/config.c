@@ -88,8 +88,8 @@ const davrods_dir_conf_t default_config = {
     .html_head   = "",
     .html_header = "",
     .html_footer = "",
-
-    .force_download = DAVRODS_FORCE_DOWNLOAD_OFF,
+    .html_emit_tickets = DAVRODS_HTML_EMIT_TICKETS_ON,
+    .force_download    = DAVRODS_FORCE_DOWNLOAD_OFF,
 };
 
 void *davrods_create_dir_config(apr_pool_t *p, char *dir) {
@@ -141,6 +141,8 @@ void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
     MERGE(html_head);
     MERGE(html_header);
     MERGE(html_footer);
+
+    MERGE(html_emit_tickets);
 
     MERGE(force_download);
 
@@ -408,6 +410,23 @@ static const char *cmd_davrodshtmlfooter(
     return NULL;
 }
 
+static const char *cmd_davrodshtmlemittickets(
+    cmd_parms *cmd, void *config,
+    const char *arg1
+) {
+    davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
+
+    if (!strcasecmp(arg1, "on")) {
+        conf->html_emit_tickets = DAVRODS_HTML_EMIT_TICKETS_ON;
+    } else if (!strcasecmp(arg1, "off")) {
+        conf->html_emit_tickets = DAVRODS_HTML_EMIT_TICKETS_OFF;
+    } else {
+        return "This directive accepts only 'On' and 'Off' values";
+    }
+
+    return NULL;
+}
+
 static const char *cmd_davrodsforcedownload(
     cmd_parms *cmd, void *config,
     const char *arg1
@@ -492,6 +511,10 @@ const command_rec davrods_directives[] = {
     AP_INIT_TAKE1(
         DAVRODS_CONFIG_PREFIX "HtmlFooter", cmd_davrodshtmlfooter,
         NULL, ACCESS_CONF, "File that's inserted into HTML directory listings, in the body tag"
+    ),
+    AP_INIT_TAKE1(
+        DAVRODS_CONFIG_PREFIX "HtmlEmitTickets", cmd_davrodshtmlemittickets,
+        NULL, ACCESS_CONF, "When On, emits tickets received from the client in HTML listing anchor query strings"
     ),
     AP_INIT_TAKE1(
         DAVRODS_CONFIG_PREFIX "ForceDownload", cmd_davrodsforcedownload,
