@@ -36,6 +36,7 @@ Please choose the right version for your platform:
 
 | Date        | Davrods ver. | iRODS runtime ver. | Packages                                                                          |
 | ----------- | ------------ | ------------------ | --------------------------------------------------------------------------------- |
+| 2020-06-02  | 1.5.0        | 4.2.8              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.8_1.5.0) |
 | 2019-12-20  | 1.4.2        | 4.2.7              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.7_1.4.2) |
 | 2019-06-20  | 1.4.2        | 4.2.6              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.6_1.4.2) |
 | 2019-04-03  | 1.4.2        | 4.2.5              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.5_1.4.2) |
@@ -80,9 +81,9 @@ package using the RPM or DEB file from the
 Download the Davrods package for your platform and install it using your
 package manager, for example:
 
-    yum install davrods-4.2.7_1.4.2-1.rpm
+    yum install davrods-4.2.8_1.5.0-1.rpm
     --or--
-    apt install davrods-4.2.7_1.4.2.deb
+    apt install davrods-4.2.8_1.5.0.deb
 
 Now see the __Configuration__ section for instructions on how to
 configure Davrods once it has been installed.

@@ -1,3 +1,9 @@
+* Tue Jun 2 2020 Chris Smeele <c.j.smeele@uu.nl> - 4.2.8_1.5.0-1
+- Added support for read-only ticket-based access (disabled by default)
+- Support merging config from overlapping Apache Location/If sections
+- Documentation amended with advanced configuration examples (tickets and per-user configuration)
+- Now supports iRODS 4.2.8 client libraries
+
 * Fri Dec 20 2019 Chris Smeele <c.j.smeele@uu.nl> - 4.2.7_1.4.2-1
 - Now supports iRODS 4.2.7 client libraries
 
