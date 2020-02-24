@@ -2,7 +2,7 @@
  * \file
  * \brief     Davrods configuration.
  * \author    Chris Smeele
- * \copyright Copyright (c) 2016, Utrecht University
+ * \copyright Copyright (c) 2016-2020, Utrecht University
  *
  * This file is part of Davrods.
  *
@@ -52,10 +52,11 @@ const davrods_dir_conf_t default_config = {
     .rods_port              = 1247,
     .rods_zone              = "tempZone",
     .rods_default_resource  = "",
+    .rods_auth_scheme       = DAVRODS_AUTH_NATIVE,
+
     // The default path should ideally be based on the known(?) location of
     // Apache's config dir, distro-dependent...
     .rods_env_file          = "/etc/httpd/irods/irods_environment.json",
-    .rods_auth_scheme       = DAVRODS_AUTH_NATIVE,
 
     // Default to having the user's home directory as the exposed root
     // because that collection is more or less guaranteed to be readable by
@@ -218,10 +219,15 @@ static const char *cmd_davrodszone(
 
 static const char *cmd_davrodsdefaultresource(
     cmd_parms *cmd, void *config,
-    const char *arg1
+    int argc, char *const argv[]
 ) {
     davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
-    conf->rods_default_resource = arg1;
+    if (argc == 0)
+        conf->rods_default_resource = "";
+    else if (argc == 1)
+        conf->rods_default_resource = argv[0];
+    else
+        return "Expected either an empty string or a single resource name";
     return NULL;
 }
 
@@ -439,7 +445,7 @@ const command_rec davrods_directives[] = {
         DAVRODS_CONFIG_PREFIX "Zone", cmd_davrodszone,
         NULL, ACCESS_CONF, "iRODS zone"
     ),
-    AP_INIT_TAKE1(
+    AP_INIT_TAKE_ARGV(
         DAVRODS_CONFIG_PREFIX "DefaultResource", cmd_davrodsdefaultresource,
         NULL, ACCESS_CONF, "iRODS default resource (optional)"
     ),
