@@ -58,4 +58,11 @@ module AP_MODULE_DECLARE_DATA davrods_module;
 #define DAVRODS_CONFIG_PREFIX DAVRODS_PROVIDER_NAME
 #endif /* DAVRODS_CONFIG_PREFIX */
 
+// Apache environment variable used for passing iRODS tickets to Davrods.
+#define DAVRODS_TICKET_VAR "DAVRODS_TICKET"
+
+// URL query string param name ("?ticket=..."). Must not contain special characters.
+// Used by HTML listing code to generate URLs if tickets are in use.
+#define DAVRODS_TICKET_URL_PARAM "ticket"
+
 #endif /* _MOD_DAVRODS_H */

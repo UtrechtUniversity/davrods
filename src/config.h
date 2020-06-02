@@ -83,14 +83,20 @@ typedef struct {
         DAVRODS_ROOT_USER_DIR,       //             User             => /<zone>/home/<username>
     } rods_exposed_root_type;
 
-    const char *html_head;
-    const char *html_header;
-    const char *html_footer;
+    enum {
+        DAVRODS_TICKET_MODE_OFF = 1,
+        DAVRODS_TICKET_MODE_READ_ONLY,
+        DAVRODS_TICKET_MODE_READ_WRITE,
+    } ticket_mode;
 
     enum {
         DAVRODS_HTML_EMIT_TICKETS_OFF = 1,
         DAVRODS_HTML_EMIT_TICKETS_ON,
     } html_emit_tickets;
+
+    const char *html_head;
+    const char *html_header;
+    const char *html_footer;
 
     enum {
         // Relevant only for webbrowser-style clients.

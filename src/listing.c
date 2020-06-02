@@ -221,7 +221,7 @@ dav_error *davrods_deliver_directory_listing(
 
     // Construct a query string containing the current ticket to embed in links.
 
-    #define QPREFIX "?ticket="
+    #define QPREFIX "?" DAVRODS_TICKET_URL_PARAM "="
 
     // Query string will store prefix as-is + up to 3x max ticket length (3*100)
     // (each 'X' encoded as '%NN') + a NUL.
@@ -234,6 +234,7 @@ dav_error *davrods_deliver_directory_listing(
         // there is a ticket set for this request (only possible with
         // non-default apache config), and the ticket is non-empty and sane.
 
+        // Encode only the param value.
         ap_escape_urlencoded_buffer(encoded_query_string+sizeof(QPREFIX)-1, ticket);
     } else {
         // No ticket, no query string.

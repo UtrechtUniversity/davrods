@@ -57,6 +57,7 @@ link_libraries(irods_client)
 
 add_compile_options(-Wall
                     -Wextra
+                    -pedantic
                     -Wno-unused-parameter
                     -Wno-missing-field-initializers
                     -Wno-format # Due to APR/iRODS format specifier oddities.

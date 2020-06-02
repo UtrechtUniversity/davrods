@@ -6,7 +6,7 @@ default Davrods distribution provide for most common Davrods use cases.
 Some more interesting configurations are possible using more advanced
 Apache features, detailed in this document.
 
-The examples in this document assume Davrods version `4.2.7_1.5.0` or
+The examples in this document assume Davrods version `4.2.8_1.5.0` or
 newer.
 
 ## Setting per-user Davrods options ##
@@ -53,11 +53,16 @@ Below we provide an example of how to accomplish this:
 ## Enabling iRODS ticket support ##
 
 Davrods optionally allows using
-[iRODS tickets](https://docs.irods.org/4.2.7/icommands/tickets/) to
-access collections and data objects. In order to make use of this
-feature, special configuration is needed. Since this configuration is
-relatively complex and very use-case dependent, it is not included in
-the provided [vhost templates](aux/deb/davrods-vhost.conf).
+[iRODS tickets](https://docs.irods.org/4.2.8/icommands/tickets/)
+to obtain read-only access to collections and data objects.
+In order to make use of this feature, special configuration is needed.
+Since this configuration is relatively complex and very use-case
+dependent, it is not included in the provided
+[vhost templates](aux/deb/davrods-vhost.conf).
+When no such configuration is present, ticket support is completely
+disabled as in previous Davrods versions.
+Note: Davrods does not support using tickets for *write* operations
+(including creating, deleting, moving or copying files).
 
 WebDAV has no concept of tickets, except for an
 [expired IETF draft](https://tools.ietf.org/html/draft-ito-dav-ticket-00)
@@ -78,14 +83,17 @@ method, if they wish to use tickets.
 
 The way this works is as follows:
 
-Using standard Apache config directives, such as `SetEnv`, a request
-environment variable `DAVRODS_TICKET` can be set. When Davrods reads
-this variable, it sends the value as a ticket to iRODS.
+First of all, ticket support must be enabled by setting
+`DavrodsTickets ReadOnly` in the vhost's location block.
+
+Then, using standard Apache config directives such as `SetEnv`, a
+request environment variable `DAVRODS_TICKET` can be set. When Davrods
+reads this variable, it sends the value as a ticket to iRODS.
 
 The tricky part then, is to use only Apache config directives to extract
 the ticket from WebDAV requests. For the three methods described above,
 we provide example code that can be inserted into Davrods vhost
-configurations.
+configuration files.
 
 As shown in the examples below, the configuration directives should be
 placed in the VirtualHost section. They may be combined in a single
@@ -113,6 +121,13 @@ Regular WebDAV clients are unable to use this method.
 
   <Location />
     ...
+
+    # Enable tickets, and automatically append '?ticket=...' to links in
+    # web browser directory listings.
+    DavrodsTickets ReadOnly
+    DavrodsHtmlEmitTickets On
+
+    ...
   </Location>
 </VirtualHost>
 ```
@@ -133,6 +148,10 @@ but may be used by curl and custom clients.
   RewriteRule .* - [E=DAVRODS_TICKET:%1,L]
 
   <Location />
+    ...
+
+    DavrodsTickets ReadOnly
+
     ...
   </Location>
 </VirtualHost>
@@ -170,7 +189,7 @@ here if you need it.
     # These settings override settings in the <Location> section below for
     # the current request, but only if the condition matches (i.e. a client
     # has submitted a ticket via Basic auth).
-    # This depends on Basic auth being enabled in the Location section
+    # This requires Basic auth to be enabled in the Location section
     # below, as most clients will not send an Authorization header
     # unless asked to by the HTTP server.
 
@@ -188,6 +207,10 @@ here if you need it.
   </If>
 
   <Location />
+    ...
+
+    DavrodsTickets ReadOnly
+
     ...
   </Location>
 </VirtualHost>
