@@ -208,8 +208,8 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
 
             return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
                                  "Anonymous mode is enabled but Davrods couldn't log in "
-                                 "with the configured anonymous credentials (option DavRodsAnonymousLogin) "
-                                 "and the configured auth scheme (option DavRodsAuthScheme).");
+                                 "with the configured anonymous credentials (option DavrodsAnonymousLogin) "
+                                 "and the configured auth scheme (option DavrodsAuthScheme).");
         }
 
     } else {
@@ -219,7 +219,7 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
 
         return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
                              "iRODS connection could not be set up due to a configuration error: "
-                             "Either enable anonymous access mode (DavRodsAnonymousMode On, Require all granted) "
+                             "Either enable anonymous access mode (DavrodsAnonymousMode On, Require all granted) "
                              "or enable Davrods' basic auth provider (Require valid-user, AuthType Basic, AuthBasicProvider irods).");
     }
 }
