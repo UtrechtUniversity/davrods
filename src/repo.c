@@ -2,7 +2,7 @@
  * \file
  * \brief     Davrods DAV repository.
  * \author    Chris Smeele
- * \copyright Copyright (c) 2016-2018, Utrecht University
+ * \copyright Copyright (c) 2016-2020, Utrecht University
  *
  * This file is part of Davrods.
  *
@@ -22,6 +22,7 @@
 #include "repo.h"
 #include "auth.h" // For anonymous access.
 #include "byterange.h"
+#include "listing.h"
 
 #include <http_request.h>
 #include <http_protocol.h>
@@ -33,6 +34,14 @@
 
 APLOG_USE_MODULE(davrods);
 
+/* This file implements a "repository provider", which is a component
+ * that implements file system access as the backend of mod_dav.
+ * The struct davrods_hooks_repository at the bottom of the file lists the
+ * functions that make up the repository interface, which we use to register
+ * with mod_dav. Generally in this file we implement these repository functions
+ * one by one, with required helper functions above them.
+ */
+
 /**
  * \brief Get a pointer to the last part of a pathname.
  *
@@ -43,7 +52,7 @@ APLOG_USE_MODULE(davrods);
  *
  * \return a pointer pointing within path
  */
-static const char *get_basename(const char *path) {
+const char *davrods_get_basename(const char *path) {
     size_t len = strlen(path);
     if (!len)
         return path;
@@ -65,7 +74,7 @@ static const char *get_basename(const char *path) {
  *
  * If Davrods is running with HTTP Basic auth enabled, then the pool
  * and the iRODS connection are set up by auth.c before we ever enter
- * repo.c. We can then simply return the pool from the request.
+ * repo.c. We can then simply return the pool from the connection.
  *
  * Otherwise, if Basic auth is disabled, then the first time this
  * function is entered in a HTTP connection, the pool and iRODS
@@ -112,7 +121,7 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
         if (!status && rods_conn) {
             // We have a rods_conn.
 
-            if (conf->anonymous_mode == DAVRODS_ANONYMOUS_MODE_ON) {
+            if (DAVRODS_CONF(conf, anonymous_mode) == DAVRODS_ANONYMOUS_MODE_ON) {
                 // Anonymous mode. The existing rods_conn must have been opened
                 // in anon mode as well.
 
@@ -121,8 +130,8 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
                 // existing connection.
                 bool can_reuse
                     = davrods_user_can_reuse_connection(r,
-                                                        conf->anonymous_auth_username,
-                                                        conf->anonymous_auth_password);
+                                                        DAVRODS_CONF(conf, anonymous_auth_username),
+                                                        DAVRODS_CONF(conf, anonymous_auth_password));
                 if (can_reuse)
                     // All is fine.
                     return NULL;
@@ -174,13 +183,13 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
     // configuration: They need to have either Davrods basic auth or anonymous
     // mode enabled.
 
-    if (conf->anonymous_mode == DAVRODS_ANONYMOUS_MODE_ON) {
+    if (DAVRODS_CONF(conf, anonymous_mode) == DAVRODS_ANONYMOUS_MODE_ON) {
 
         // Authenticate as the anonymous user.
 
         authn_status result = check_rods(r,
-                                         conf->anonymous_auth_username,
-                                         conf->anonymous_auth_password,
+                                         DAVRODS_CONF(conf, anonymous_auth_username),
+                                         DAVRODS_CONF(conf, anonymous_auth_password),
                                          false);
 
         if (result == AUTH_GRANTED) {
@@ -199,8 +208,8 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
 
             return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
                                  "Anonymous mode is enabled but Davrods couldn't log in "
-                                 "with the configured anonymous credentials (option DavRodsAnonymousLogin) "
-                                 "and the configured auth scheme (option DavRodsAuthScheme).");
+                                 "with the configured anonymous credentials (option DavrodsAnonymousLogin) "
+                                 "and the configured auth scheme (option DavrodsAuthScheme).");
         }
 
     } else {
@@ -210,7 +219,7 @@ static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
 
         return dav_new_error(r->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
                              "iRODS connection could not be set up due to a configuration error: "
-                             "Either enable anonymous access mode (DavRodsAnonymousMode On, Require all granted) "
+                             "Either enable anonymous access mode (DavrodsAnonymousMode On, Require all granted) "
                              "or enable Davrods' basic auth provider (Require valid-user, AuthType Basic, AuthBasicProvider irods).");
     }
 }
@@ -312,6 +321,11 @@ static void copy_resource_context(dav_resource_private *dest, const dav_resource
 }
 
 
+/**
+ * \brief Determine the exposed iRODS root collection for a given request.
+ *
+ * Root can vary based on the logged in user and zone.
+ */
 static const char *get_rods_root(apr_pool_t *davrods_pool, request_rec *r) {
     davrods_dir_conf_t *conf = ap_get_module_config(
         r->per_dir_config,
@@ -321,30 +335,30 @@ static const char *get_rods_root(apr_pool_t *davrods_pool, request_rec *r) {
 
     const char *root = NULL;
 
-    if (conf->rods_exposed_root_type == DAVRODS_ROOT_ZONE_DIR) {
+    if (DAVRODS_CONF(conf, rods_exposed_root_type) == DAVRODS_ROOT_ZONE_DIR) {
         root = apr_pstrcat(davrods_pool,
-            "/", conf->rods_zone,
+            "/", DAVRODS_CONF(conf, rods_zone),
             NULL
         );
-    } else if (conf->rods_exposed_root_type == DAVRODS_ROOT_HOME_DIR) {
+    } else if (DAVRODS_CONF(conf, rods_exposed_root_type) == DAVRODS_ROOT_HOME_DIR) {
         root = apr_pstrcat(davrods_pool,
-            "/", conf->rods_zone, "/home",
+            "/", DAVRODS_CONF(conf, rods_zone), "/home",
             NULL
         );
-    } else if (conf->rods_exposed_root_type == DAVRODS_ROOT_USER_DIR) {
+    } else if (DAVRODS_CONF(conf, rods_exposed_root_type) == DAVRODS_ROOT_USER_DIR) {
         const char *username = NULL;
         int status = apr_pool_userdata_get((void**)&username, "username", davrods_pool);
         assert(status == 0 && username);
 
         root = apr_pstrcat(davrods_pool,
-            "/", conf->rods_zone, "/home/", username,
+            "/", DAVRODS_CONF(conf, rods_zone), "/home/", username,
             NULL
         );
     } else {
-        root = conf->rods_exposed_root;
+        root = DAVRODS_CONF(conf, rods_exposed_root);
     }
 
-    WHISPER("Determined rods root to be <%s> for this user (conf said <%s>)\n", root, conf->rods_exposed_root);
+    WHISPER("Determined rods root to be <%s> for this user (conf said <%s>)\n", root, DAVRODS_CONF(conf, rods_exposed_root));
 
     return root;
 }
@@ -354,6 +368,91 @@ static apr_status_t rods_stat_cleanup(void *mem) {
     freeRodsObjStat((rodsObjStat_t*)mem);
     return 0;
 }
+
+/**
+ * \brief Returns the active session ticket for the current iRODS connection.
+ *
+ * returns NULL if no ticket was set, or if the last set ticket was empty.
+ */
+static const char *get_session_ticket(const dav_resource *resource) {
+    const char *active_ticket;
+    int status = apr_pool_userdata_get((void*)&active_ticket,
+                                   "active_ticket", resource->info->davrods_pool);
+    assert(status == 0);
+
+    if (active_ticket && active_ticket[0])
+         return active_ticket;
+    else return NULL;
+}
+
+/**
+ * \brief Submits the given ticket to iRODS if it is not already active.
+ *
+ * This is a no-op if the submitted ticket is the same as the currently active
+ * (possibly empty) ticket.
+ */
+static void set_session_ticket(const dav_resource *resource, const char *ticket) {
+    // What's the active ticket? (NULL if unset)
+    const char *active_ticket = get_session_ticket(resource);
+
+    // Only send a ticket API request if this request's ticket differs from
+    // the previous one (if any).
+    if (!active_ticket) active_ticket = "";
+    if (!       ticket)        ticket = "";
+
+    WHISPER("Ticket: active-keepalive<%s> current-request<%s>\n", active_ticket, ticket);
+
+    if (strcmp(active_ticket, ticket)) {
+
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, resource->info->r,
+                      "%s session ticket", ticket[0] ? "Setting new" : "Clearing");
+
+        int status = rcTicketAdmin(resource->info->rods_conn,
+                                   &(ticketAdminInp_t) {
+                                        .arg1 = "session",
+                                        .arg2 = (char*)ticket,
+                                        .arg3 = "", .arg4 = "", .arg5 = "", .arg6 = "" });
+        if (status != 0) {
+            // Note: iRODS does not report that a submitted ticket is invalid.
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
+                          "Couldn't set session ticket: %s", get_rods_error_msg(status));
+        }
+
+        // Keep track of ticket state to avoid unnecessary API traffic for
+        // keep-alive requests.
+        apr_pool_userdata_set(apr_pstrdup(resource->info->davrods_pool, ticket),
+                              "active_ticket", NULL, resource->info->davrods_pool);
+    }
+}
+
+/**
+ * When Davrods is configured for ticket support in read-only mode
+ * ('DavrodsTickets ReadOnly'), and a ticket is submitted by a client along
+ * with this request, then destructive operations such as PUT, COPY, MOVE,
+ * DELETE are disallowed with a 403 response.
+ *
+ * This read-only option exists mainly to prevent triggering certain known
+ * issues that can occur when using tickets for write operations in iRODS 4.2.7
+ * and possibly earlier versions (some, but not all of these issues were fixed
+ * in iRODS 4.2.8).
+ * Additionally, iRODS only allows certain filesystem 'write' operations with
+ * an active ticket. For example, PUT on an existing file works, but MKCOLL,
+ * DELETE, COPY, MOVE, and PUTting new files will not work, which reduces
+ * WebDAV usability significantly.
+ *
+ * Write support for tickets is not advertised or documented by Davrods for the
+ * above reasons, but can still be enabled via vhost config directives if the
+ * sysadmin knows what they are doing...
+ */
+#define RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(resource)                             \
+    if (DAVRODS_CONF(resource->info->conf, ticket_mode) == DAVRODS_TICKET_MODE_READ_ONLY \
+     && get_session_ticket(resource)) {                                                  \
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,             \
+            "Disallowing attempted destructive operation via ticket on <%s>",            \
+            resource->uri);                                                              \
+        return dav_new_error(resource->pool, HTTP_FORBIDDEN, 0, 0,                       \
+                             "Ticket write actions are disallowed by this server");      \
+    }
 
 /**
  * \brief Query iRODS for information pertaining to a certain resource and fill in those resource properties.
@@ -414,7 +513,7 @@ static dav_error *get_dav_resource_rods_info(dav_resource *resource) {
             resource->exists = 0;
 
             ap_log_rerror(APLOG_MARK, APLOG_WARNING, APR_SUCCESS, r,
-                "Unknown iRODS object type <%d> for path <%s>! Will act as if it does not exist.",
+                "Unknown iRODS object type <%d> for path <%s>, ignored",
                 stat_out->objType,
                 res_private->rods_path
             );
@@ -426,6 +525,15 @@ static dav_error *get_dav_resource_rods_info(dav_resource *resource) {
 
 /**
  * \brief Create a DAV resource struct for the given request URI.
+ *
+ * For every WebDAV operation, this is the first Davrods function to be called
+ * by mod_dav. It may be called more than once for a single HTTP request. E.g.
+ * when handling a COPY request, dav_resource objects are created for both the
+ * source and the destination path.
+ *
+ * The output dav_resource object is passed by mod_dav as a handle to other
+ * Davrods functions. We attach our context to this object so that we can
+ * access it from those functions.
  *
  * \param      r               the request that lead to this resource
  * \param      root_dir        the root URI where Davrods lives (its <Location>)
@@ -442,7 +550,10 @@ static dav_error *dav_repo_get_resource(
     int use_checked_in,
     dav_resource **result_resource
 ) {
+    WHISPER("Get resource <%s>\n", r->uri);
+
     // Create private resource context {{{
+
     dav_resource_private *res_private;
     res_private = apr_pcalloc(r->pool, sizeof(*res_private));
     assert(res_private);
@@ -489,6 +600,38 @@ static dav_error *dav_repo_get_resource(
     resource->pool  = res_private->r->pool;
     resource->info  = res_private;
 
+    // Activate or deactivate iRODS tickets {{{
+
+    if (DAVRODS_CONF(res_private->conf, ticket_mode) != DAVRODS_TICKET_MODE_OFF) {
+        // Because tickets can be sent by HTTP clients in multiple ways, we
+        // delegate the parsing of incoming tickets to Apache configuration.
+        // Here, we only read an Apache (per-request) environment variable
+        // "DAVRODS_TICKET".
+        // In a default Davrods configuration, there is no way for a HTTP
+        // client to set such a variable, so to actually allow ticket use,
+        // additional configuration is needed, e.g. by conditionally setting
+        // the variable using RewriteRule directives, based on request headers
+        // or query strings.
+        //
+        // The iRODS server maintains a single active ticket as agent/session state.
+        // We keep track of the activated ticket locally (as part of keepalive
+        // state), so that we only need to make ticket API roundtrips when the
+        // current request's ticket differs from the active (keepalive) ticket.
+        //
+        // Note also that tickets are not additive with ACLs in iRODS, in the
+        // sense that when accessing an object with an active session ticket,
+        // ACLs on those objects related to your user do not necessarily apply.
+        // Submitting a ticket can actually reduce your level of access(!)
+        // Either way, it's important that we clear the session ticket if a
+        // keepalive request no longer bears a ticket.
+
+        // This variable may be NULL or empty.
+        set_session_ticket(resource, apr_table_get(r->subprocess_env, DAVRODS_TICKET_VAR));
+    }
+
+    // }}}
+
+    // Fill in object stat info. Do this after a ticket is applied (if any).
     err = get_dav_resource_rods_info(resource);
     if (err)
         return err;
@@ -597,6 +740,11 @@ static dav_error *dav_repo_open_stream(
     dav_stream_mode mode,
     dav_stream **result_stream
 ) {
+    // Streams are used to service requests to overwrite (parts of) files.
+
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(resource);
+
     struct dav_stream *stream = apr_pcalloc(resource->pool, sizeof(dav_stream));
     assert(stream);
 
@@ -607,7 +755,7 @@ static dav_error *dav_repo_open_stream(
         mode == DAV_MODE_WRITE_SEEKABLE
         || (
                mode == DAV_MODE_WRITE_TRUNC
-            && resource->info->conf->tmpfile_rollback == DAVRODS_TMPFILE_ROLLBACK_OFF
+            && DAVRODS_CONF(resource->info->conf, tmpfile_rollback) == DAVRODS_TMPFILE_ROLLBACK_OFF
         )
     ) {
         // Either way, do not use tmpfiles for rollback support.
@@ -661,9 +809,9 @@ static dav_error *dav_repo_open_stream(
 
     dataObjInp_t *open_params = &stream->open_params;
     // Set destination resource if it exists in our config.
-    if (resource->info->conf->rods_default_resource && strlen(resource->info->conf->rods_default_resource)) {
-        addKeyVal(&open_params->condInput, DEST_RESC_NAME_KW, resource->info->conf->rods_default_resource);
-    }
+    { const char *res = DAVRODS_CONF(resource->info->conf, rods_default_resource);
+      if (res && strlen(res))
+          addKeyVal(&open_params->condInput, DEST_RESC_NAME_KW, res); }
 
     strcpy(stream->open_params.objPath, stream->write_path);
 
@@ -722,7 +870,7 @@ static dav_error *dav_repo_open_stream(
 
     ap_log_rerror(
         APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, resource->info->r,
-        "Will write using %luK chunks", resource->info->conf->rods_tx_buffer_size / 1024
+        "Will write using %luK chunks", DAVRODS_CONF(resource->info->conf, rods_tx_buffer_size) / 1024
     );
 
     *result_stream = stream;
@@ -798,7 +946,7 @@ static dav_error *dav_repo_write_stream(
 
     if (!stream->container) {
         // Initialize the container.
-        stream->container_size = stream->resource->info->conf->rods_tx_buffer_size;
+        stream->container_size = DAVRODS_CONF(stream->resource->info->conf, rods_tx_buffer_size);
         stream->container_off  = 0;
 
         stream->container = apr_pcalloc(
@@ -1055,7 +1203,7 @@ static dav_error *dav_repo_set_headers(
                                                         &davrods_module);
         assert(conf);
 
-        if (conf->force_download == DAVRODS_FORCE_DOWNLOAD_ON)
+        if (DAVRODS_CONF(conf, force_download) == DAVRODS_FORCE_DOWNLOAD_ON)
             // Prevent inline display of files in web browsers.
             apr_table_setn(r->headers_out, "Content-Disposition", "attachment");
     }
@@ -1133,400 +1281,6 @@ static dav_error *deliver_file(
     return NULL;
 }
 
-/**
- * \brief Encode a path such that it can be safely used in a URI.
- *
- * Used within HTML directory listings.
- * If the input path is safe, no new string is allocated.
- *
- * \param pool A memory pool
- * \param path The path to escape
- *
- * \return An escaped path (may be the same as the input pointer)
- */
-static const char *escape_uri_path(
-    apr_pool_t *pool,
-    const char *path
-) {
-    // Apache's ap_escape_uri is not sufficient, as it is OS-dependent(!?) and
-    // does not encode certain reserved characters that can be problematic in
-    // relative URLs.
-    //
-    // Given the lack of an Apache function that does what we need, we do URL
-    // encoding ourselves, as per RFC 1808:
-    // https://tools.ietf.org/html/rfc1808 (page 4)
-    //
-    // We encode everything outside of the 'unreserved' character class, except for '/'.
-    // That is, every char not in [a-zA-Z0-9$_.+!*'(),/-].
-
-    static const char escape_table[256] = {
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,0,1,1,0,1,1,0,0,0,0,0,0,0,0,0, //  !"#$%&'()*+,-./
-        0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1, // 0123456789:;<=>?
-        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // @ABCDEFGHIJKLMNO
-        0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0, // PQRSTUVWXYZ[\]^_
-        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // `abcdefghijklmno
-        0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1, // pqrstuvwxyz{|}~
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    };
-
-    size_t length_orig    = strlen(path);
-    size_t reserved_count = 0;
-
-    for (size_t i = 0; i < length_orig; ++i) {
-        if (escape_table[(unsigned char)path[i]])
-            ++reserved_count;
-    }
-
-    if (!reserved_count)
-        return path; // Nothing to escape.
-
-    // Each reserved char will take up 2 extra characters ('&' => '%26').
-    size_t length_new = length_orig + reserved_count*2;
-
-    char *new_path = apr_pcalloc(pool, length_new + 1);
-    assert(new_path);
-    for (size_t i = 0, j = 0;
-         i < length_orig && j < length_new;
-         ++i) {
-
-        if (escape_table[(unsigned char)path[i]]) {
-            sprintf(new_path + j, "%%%.2X", (unsigned char)path[i]);
-            j += 3;
-        } else {
-            new_path[j++] = path[i];
-        }
-    }
-
-    return new_path;
-}
-
-/**
- * \brief Within a HTML directory listing, insert the contents of a local file.
- *
- * \param resource Provides context, pool etc.
- * \param bb       The bucket brigade
- * \param path     The local file path to read (must be accessible by httpd)
- *
- * \return APR_SUCCESS on success, an APR_* error code otherwise
- */
-static apr_status_t deliver_directory_try_insert_local_file(
-    const dav_resource *resource,
-    apr_bucket_brigade *bb,
-    const char *path
-) {
-    if (!strlen(path))
-        return APR_SUCCESS;
-
-    apr_file_t *f;
-    apr_status_t status = apr_file_open(&f, path, APR_FOPEN_READ, 0, resource->pool);
-
-    if (status == APR_SUCCESS) {
-        apr_finfo_t info;
-        status = apr_file_info_get(&info, APR_FINFO_SIZE, f);
-
-        if (status == APR_SUCCESS) {
-            apr_size_t chunk_size = AP_IOBUFSIZE;
-            apr_size_t read_total = 0;
-
-            char *buf = malloc(chunk_size);
-            assert(buf);
-
-            // Read the file in chunks and write the contents to the brigade.
-            while (read_total < (apr_size_t)info.size) {
-                if (info.size - read_total < chunk_size)
-                    chunk_size = info.size - read_total;
-
-                apr_size_t read_count = 0;
-                status = apr_file_read_full(f, buf, chunk_size, &read_count);
-
-                if (read_count == chunk_size && status == APR_SUCCESS) {
-                    apr_brigade_write(bb, NULL, NULL, buf, read_count);
-                    read_total += read_count;
-                } else {
-                    break;
-                }
-            }
-
-            free(buf);
-
-            if (read_total != (apr_size_t)info.size || status != APR_SUCCESS) {
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, status, resource->info->r,
-                              "Could not read file <%s>", path);
-            }
-        } else {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, status, resource->info->r,
-                          "Could not stat file <%s>", path);
-        }
-        apr_file_close(f);
-
-    } else {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, status, resource->info->r,
-                      "Could not open file <%s> for reading", path);
-    }
-
-    return status;
-}
-
-static dav_error *deliver_directory(
-    const dav_resource *resource,
-    ap_filter_t *output
-) {
-    // Print a basic HTML directory listing.
-    collInp_t coll_inp = {{ 0 }};
-    strcpy(coll_inp.collName, resource->info->rods_path);
-
-    collHandle_t coll_handle = { 0 };
-
-    // Open the collection.
-    collEnt_t    coll_entry;
-    int status = rclOpenCollection(
-        resource->info->rods_conn,
-        resource->info->rods_path,
-        LONG_METADATA_FG,
-        &coll_handle
-    );
-
-    if (status < 0) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
-                      "rcOpenCollection failed: %d = %s", status, get_rods_error_msg(status));
-
-        return dav_new_error(resource->pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
-                             "Could not open a collection");
-    }
-
-    // Make brigade.
-    apr_pool_t         *pool = resource->pool;
-    apr_bucket_brigade *bb = apr_brigade_create(pool, output->c->bucket_alloc);
-    apr_bucket         *bkt;
-
-    // Collection URIs must end with a slash to make relative links work.
-    // Normally, web servers redirect clients to `path + '/'` if it's missing,
-    // but mod_dav does not expect us to return a redirect status code (it
-    // works, but results in mod_dav error messages).
-    //
-    // As an alternative solution, we supply a HTML <base> tag containing the
-    // correct collection path (with appended '/' if necessary). This is then
-    // used by the browser as a base URI for all relative links.
-    //
-    bool uri_ends_with_slash = false;
-    { size_t uri_length = strlen(resource->info->relative_uri);
-      if (uri_length && resource->info->relative_uri[uri_length-1] == '/')
-          uri_ends_with_slash = true; }
-
-    char *root_dir_without_trailing_slash = apr_pstrdup(pool, resource->info->root_dir);
-    { size_t len = strlen(root_dir_without_trailing_slash);
-      if (len && root_dir_without_trailing_slash[len-1] == '/')
-          root_dir_without_trailing_slash[len-1] = '\0'; }
-
-    // Send start of HTML document.
-    apr_brigade_printf(bb, NULL, NULL,
-                       "<!DOCTYPE html>\n<html>\n<head>\n"
-                       "<title>Index of %s%s on %s</title>\n"
-                       "<base href=\"%s%s%s\">\n",
-                       ap_escape_html(pool, resource->info->relative_uri),
-                       uri_ends_with_slash ? "" : "/",
-                       ap_escape_html(pool, resource->info->conf->rods_zone),
-                       ap_escape_html(pool, escape_uri_path(pool, root_dir_without_trailing_slash)),
-                       ap_escape_html(pool, escape_uri_path(pool, resource->info->relative_uri)),
-                       uri_ends_with_slash ? "" : "/"); // Append a slash to fix relative links on this page.
-
-    deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_head);
-
-    apr_brigade_puts(bb, NULL, NULL, "</head>\n<body>\n");
-
-    deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_header);
-
-    apr_brigade_puts(bb, NULL, NULL,
-                     "<!-- Warning: Do not parse this directory listing programmatically,\n"
-                     "              the format may change without notice!\n"
-                     "              If you want to script access to these WebDAV collections,\n"
-                     "              please use the PROPFIND method instead. -->\n\n"
-                     "<h1>Index of <span class=\"relative-uri\">");
-
-    {
-        // Print breadcrumb path.
-        size_t uri_len = strlen(resource->info->relative_uri);
-        char * const path = apr_pcalloc(pool, uri_len + 2);
-        strcpy(path, resource->info->relative_uri);
-        if (!uri_ends_with_slash)
-            path[uri_len] = '/';
-
-        char *p = path;
-        const char *part = p;
-        for (; *p; ++p) {
-            if (*p == '/') {
-                *p = '\0';
-                apr_brigade_printf(bb, NULL, NULL,
-                                   "<a href=\"%s%s/\">%s</a>%s",
-                                   ap_escape_html(pool, escape_uri_path(pool, root_dir_without_trailing_slash)),
-                                   ap_escape_html(pool, escape_uri_path(pool, path)),
-                                   p == path ? "/" : ap_escape_html(pool, part+1),
-                                   p == path ? ""  : "/");
-                *p = '/';
-                part = p;
-            }
-        }
-    }
-
-    apr_brigade_printf(bb, NULL, NULL, "</span> on <span class=\"zone-name\">%s</span></h1>\n",
-                       ap_escape_html(pool, resource->info->conf->rods_zone));
-
-    if (strcmp(resource->info->relative_uri, "/") && resource->info->relative_uri[0])
-        apr_brigade_puts(bb, NULL, NULL, "<p><a class=\"parent-link\" href=\"..\">Parent collection</a></p>\n");
-
-    apr_brigade_puts(bb, NULL, NULL,
-                     "<table>\n<thead>\n"
-                     "  <tr><th class=\"name\">Name</th><th class=\"size\">Size</th><th class=\"owner\">Owner</th><th class=\"date\">Last modified</th></tr>\n"
-
-                     "</thead>\n<tbody>\n");
-
-    // Actually print the directory listing, one table row at a time.
-    do {
-        status = rclReadCollection(resource->info->rods_conn, &coll_handle, &coll_entry);
-
-        if (status < 0) {
-            if (status == CAT_NO_ROWS_FOUND) {
-                // End of collection.
-            } else {
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
-                              "rcReadCollection failed for collection <%s> with error <%s>",
-                              resource->info->rods_path, get_rods_error_msg(status));
-
-                apr_brigade_destroy(bb);
-
-                return dav_new_error(resource->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
-                                     "Could not read a collection entry from a collection.");
-            }
-        } else {
-            const char *name = coll_entry.objType == DATA_OBJ_T
-                ? coll_entry.dataName
-                : get_basename(coll_entry.collName);
-
-            char *extension = NULL;
-            if (coll_entry.objType == DATA_OBJ_T) {
-                // Data object. Extract the extension to assist theming.
-                const char *orig_extension = strrchr(name, '.'); // Includes the dot.
-                if (orig_extension && strlen(orig_extension) > 1) {
-                    extension = apr_pstrdup(pool, orig_extension + 1);
-                    assert(extension);
-                    size_t len = strlen(extension);
-                    for (size_t i = 0; i < len; ++i) {
-                        if (extension[i] >= 'A' && extension[i] <= 'Z') {
-                            // Lowercase.
-                            extension[i] = extension[i] + ('a' - 'A');
-
-                        } else if ((extension[i] >= 'a' && extension[i] <= 'z')
-                                || (extension[i] >= '0' && extension[i] <= '9')
-                                || extension[i] == '-'
-                                || extension[i] == '_') {
-                            // OK.
-                        } else {
-                            // Restrict allowed extension characters to keep HTML class name well-formed.
-                            extension = NULL;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            apr_brigade_printf(bb, NULL, NULL, "  <tr class=\"object%s%s%s\">",
-                               coll_entry.objType   == COLL_OBJ_T ? " collection"
-                               : coll_entry.objType == DATA_OBJ_T ? " data-object"
-                               : "",
-                               extension ? " extension-" : "",
-                               extension ?   extension   : "");
-
-            // Generate link.
-            if (coll_entry.objType == COLL_OBJ_T) {
-                // Collection links need a trailing slash for the '..' links to work correctly.
-                apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s/\">%s/</a></td>",
-                                   ap_escape_html(pool, escape_uri_path(pool, name)),
-                                   ap_escape_html(pool, name));
-            } else {
-                apr_brigade_printf(bb, NULL, NULL, "<td class=\"name\"><a href=\"%s\">%s</a></td>",
-                                   ap_escape_html(pool, escape_uri_path(pool, name)),
-                                   ap_escape_html(pool, name));
-            }
-
-            // Print data object size.
-            if (coll_entry.objType == DATA_OBJ_T) {
-                char size_buf[5] = { 0 };
-                // Fancy file size formatting.
-                apr_strfsize(coll_entry.dataSize, size_buf);
-                if (size_buf[0])
-                    apr_brigade_printf(bb, NULL, NULL, "<td class=\"size\">%s</td>", size_buf);
-                else
-                    apr_brigade_printf(bb, NULL, NULL, "<td class=\"size\">%lu</td>", coll_entry.dataSize);
-            } else {
-                apr_brigade_puts(bb, NULL, NULL, "<td class=\"size\"></td>");
-            }
-
-            // Print owner.
-            apr_brigade_printf(bb, NULL, NULL, "<td class=\"owner\">%s</td>",
-                               ap_escape_html(pool, coll_entry.ownerName));
-
-            // Print modified-date string.
-            uint64_t       timestamp    = atoll(coll_entry.modifyTime);
-            apr_time_t     apr_time     = 0;
-            apr_time_exp_t exploded     = { 0 };
-            char           date_str[64] = { 0 };
-
-            apr_time_ansi_put(&apr_time, timestamp);
-            apr_time_exp_lt(&exploded, apr_time);
-
-            size_t ret_size;
-            if (!apr_strftime(date_str, &ret_size, sizeof(date_str), "%Y-%m-%d %H:%M", &exploded)) {
-                apr_brigade_printf(bb, NULL, NULL, "<td class=\"date\">%s</td>",
-                                   ap_escape_html(pool, date_str));
-            } else {
-                // Fallback, just in case.
-                static_assert(sizeof(date_str) >= APR_RFC822_DATE_LEN,
-                              "Size of date_str buffer too low for RFC822 date");
-                int status = apr_rfc822_date(date_str, timestamp*1000*1000);
-                apr_brigade_printf(bb, NULL, NULL, "<td class=\"date\">%s</td>",
-                                   ap_escape_html(pool, status >= 0 ? date_str : "Thu, 01 Jan 1970 00:00:00 GMT"));
-            }
-
-            apr_brigade_puts(bb, NULL, NULL, "</tr>\n");
-        }
-    } while (status >= 0);
-
-    apr_brigade_puts(bb, NULL, NULL, "</tbody>\n</table>\n");
-
-    deliver_directory_try_insert_local_file(resource, bb, resource->info->conf->html_footer);
-
-    // End HTML document.
-    apr_brigade_puts(bb, NULL, NULL, "</body>\n</html>\n");
-
-    // Flush.
-    if ((status = ap_pass_brigade(output, bb)) != APR_SUCCESS) {
-        apr_brigade_destroy(bb);
-        return dav_new_error(pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
-                             "Could not write contents to filter.");
-    }
-
-    bkt = apr_bucket_eos_create(output->c->bucket_alloc);
-
-    APR_BRIGADE_INSERT_TAIL(bb, bkt);
-
-    if ((status = ap_pass_brigade(output, bb)) != APR_SUCCESS) {
-        apr_brigade_destroy(bb);
-        return dav_new_error(pool, HTTP_INTERNAL_SERVER_ERROR, 0, status,
-                             "Could not write content to filter.");
-    }
-    apr_brigade_destroy(bb);
-
-    return NULL;
-}
 
 static dav_error *dav_repo_deliver(
     const dav_resource *resource,
@@ -1544,13 +1298,16 @@ static dav_error *dav_repo_deliver(
     }
 
     if (resource->collection)
-        return deliver_directory(resource, output);
+        return davrods_deliver_directory_listing(resource, output);
     else
         return deliver_file(resource, output);
 }
 
 static dav_error *dav_repo_create_collection(dav_resource *resource) {
     WHISPER("Creating collection at <%s> = <%s>\n", resource->uri, resource->info->rods_path);
+
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(resource);
 
     dav_resource *parent;
     dav_error *err = dav_repo_get_parent_resource(resource, &parent);
@@ -1720,7 +1477,7 @@ static dav_error *walker(
         } else {
             const char *name = coll_entry.objType == DATA_OBJ_T
                 ? coll_entry.dataName
-                : get_basename(coll_entry.collName);
+                : davrods_get_basename(coll_entry.collName);
 
             WHISPER("Got a collection entry: %s '%s', %" DAVRODS_SIZE_T_FMT " bytes\n",
                 coll_entry.objType == DATA_OBJ_T
@@ -1821,7 +1578,7 @@ static dav_error *walker(
                     continue;
                 }
 
-                const char *name = get_basename(locked_name->entry);
+                const char *name = davrods_get_basename(locked_name->entry);
 
                 if (
                        uri_len + 1 + strlen(name) >= MAX_NAME_LEN
@@ -2013,13 +1770,11 @@ static dav_error *dav_copy_walk_callback(dav_walk_resource *wres, int calltype) 
         dataObjCopyInp_t copy_params = {{{ 0 }}};
 
         // Set destination resource if it exists in our config.
-        if (resource->info->conf->rods_default_resource && strlen(resource->info->conf->rods_default_resource)) {
-            addKeyVal(
-                &copy_params.destDataObjInp.condInput,
-                DEST_RESC_NAME_KW,
-                resource->info->conf->rods_default_resource
-            );
-        }
+        { const char *res = DAVRODS_CONF(resource->info->conf, rods_default_resource);
+          if (res && strlen(res))
+              addKeyVal(&copy_params.destDataObjInp.condInput,
+                        DEST_RESC_NAME_KW,
+                        res); }
 
         dataObjInp_t *obj_src = &copy_params.srcDataObjInp;
         dataObjInp_t *obj_dst = &copy_params.destDataObjInp;
@@ -2053,6 +1808,9 @@ static dav_error *dav_repo_copy_resource(
 ) {
     WHISPER("Copying resource <%s> to <%s>, depth %d\n", src->uri, dst->uri, depth);
 
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(dst);
+
     dav_resource *dst_parent;
 
     dav_error *err = dav_repo_get_parent_resource(dst, &dst_parent);
@@ -2064,12 +1822,9 @@ static dav_error *dav_repo_copy_resource(
         return err;
     }
 
-    if (!dst_parent->exists) {
-        return dav_new_error(
-            dst->pool, HTTP_CONFLICT, 0, 0,
-            "Parent directory does not exist."
-        );
-    }
+    if (!dst_parent->exists)
+        return dav_new_error(dst->pool, HTTP_CONFLICT, 0, 0,
+                             "Parent directory does not exist.");
 
     dav_copy_walk_private copy_ctx = { 0 };
     copy_ctx.src_rods_root = src->info->rods_path;
@@ -2095,6 +1850,9 @@ static dav_error *dav_repo_move_resource(
     dav_response **response
 ) {
     WHISPER("Moving resource <%s> to <%s>\n", src->uri, dst->uri);
+
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(dst);
 
     // Yes, the rename function takes a copyInp struct as its input.
     dataObjCopyInp_t rename_params = {{{ 0 }}};
@@ -2150,6 +1908,9 @@ static dav_error *dav_repo_remove_resource(
     dav_response **response
 ) {
     assert(resource->exists);
+
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(resource);
 
     request_rec *r = resource->info->r;
 

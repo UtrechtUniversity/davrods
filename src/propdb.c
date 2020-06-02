@@ -264,8 +264,6 @@ static dav_error *dav_propdb_next_name(
     dav_db *db,
     dav_prop_name *pname
 ) {
-    PING();
-
     //if (db->resource->exists && db->prop_iter < DAVRODS_PROP_COUNT) {
     // Don't care if a resource does not exist: It's probably a LOCKNULL resource.
 

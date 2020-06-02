@@ -122,34 +122,33 @@ static authn_status rods_login(
 
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
                   "Connecting to iRODS using address <%s:%d>, username <%s> and zone <%s>",
-                  conf->rods_host,
-                  conf->rods_port,
+                  DAVRODS_CONF(conf, rods_host),
+                  DAVRODS_CONF(conf, rods_port),
                   username,
-                  conf->rods_zone);
+                  DAVRODS_CONF(conf, rods_zone));
 
     authn_status result = AUTH_USER_NOT_FOUND;
 
     // Point the iRODS client library to the webserver's iRODS env file.
     //setenv("IRODS_ENVIRONMENT_FILE", "/dev/null", 1);
-    setenv("IRODS_ENVIRONMENT_FILE", conf->rods_env_file, 1);
+    setenv("IRODS_ENVIRONMENT_FILE", DAVRODS_CONF(conf, rods_env_file), 1);
 
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
                   "Using iRODS env file at <%s>", getenv("IRODS_ENVIRONMENT_FILE"));
 
     rErrMsg_t rods_errmsg;
     *rods_conn = rcConnect(
-        conf->rods_host,
-        conf->rods_port,
+        DAVRODS_CONF(conf, rods_host),
+        DAVRODS_CONF(conf, rods_port),
         username,
-        conf->rods_zone,
+        DAVRODS_CONF(conf, rods_zone),
         0,
         &rods_errmsg
     );
 
     if (*rods_conn) {
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
-                      "Succesfully connected to iRODS zone '%s'", conf->rods_zone);
-
+                      "Succesfully connected to iRODS zone '%s'", DAVRODS_CONF(conf, rods_zone));
         miscSvrInfo_t *server_info = NULL;
         rcGetMiscSvrInfo(*rods_conn, &server_info);
 
@@ -197,7 +196,7 @@ static authn_status rods_login(
         // If the negotiation result requires plain TCP, but we are
         // using the PAM auth scheme, we need to turn on SSL during
         // auth.
-        if (!use_ssl && conf->rods_auth_scheme == DAVRODS_AUTH_PAM) {
+        if (!use_ssl && DAVRODS_CONF(conf, rods_auth_scheme) == DAVRODS_AUTH_PAM) {
             if ((*rods_conn)->ssl) {
                 // This should not happen.
                 // In this situation we don't know if we should stop
@@ -237,13 +236,13 @@ static authn_status rods_login(
 
         int status = 0;
 
-        if (conf->rods_auth_scheme == DAVRODS_AUTH_PAM) {
+        if (DAVRODS_CONF(conf, rods_auth_scheme) == DAVRODS_AUTH_PAM) {
             char *tmp_password = NULL;
             status = do_rods_login_pam(
                 r,
                 *rods_conn,
                 password_buf,
-                conf->rods_auth_ttl,
+                DAVRODS_CONF(conf, rods_auth_ttl),
                 &tmp_password
             );
             if (!status) {
@@ -253,7 +252,7 @@ static authn_status rods_login(
                 status = clientLoginWithPassword(*rods_conn, password_buf);
             }
 
-        } else if (conf->rods_auth_scheme == DAVRODS_AUTH_NATIVE) {
+        } else if (DAVRODS_CONF(conf, rods_auth_scheme) == DAVRODS_AUTH_NATIVE) {
             status = clientLoginWithPassword(*rods_conn, password_buf);
         } else {
             // This shouldn't happen.
@@ -278,7 +277,7 @@ static authn_status rods_login(
                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
                               "Disabling SSL (was used for PAM only)");
 
-                if (conf->rods_auth_scheme != DAVRODS_AUTH_PAM) {
+                if (DAVRODS_CONF(conf, rods_auth_scheme) != DAVRODS_AUTH_PAM) {
                     // This should not happen.
                     ap_log_rerror(APLOG_MARK, APLOG_WARNING, APR_SUCCESS, r,
                                   "SSL was turned on, but not for PAM."
@@ -300,10 +299,10 @@ static authn_status rods_login(
             APLOG_MARK, APLOG_ERR, APR_SUCCESS, r,
             "Could not connect to iRODS using address <%s:%d>,"
             " username <%s> and zone <%s>. iRODS says: '%s'",
-            conf->rods_host,
-            conf->rods_port,
+            DAVRODS_CONF(conf, rods_host),
+            DAVRODS_CONF(conf, rods_port),
             username,
-            conf->rods_zone,
+            DAVRODS_CONF(conf, rods_zone),
             rods_errmsg.msg
         );
 
@@ -362,11 +361,11 @@ bool davrods_user_can_reuse_connection(request_rec *r,
     status = apr_pool_userdata_get((void**)&session_params, "session_params", pool);
     assert(!status && session_params);
 
-    if (session_params->anon_mode != conf->anonymous_mode)
+    if (session_params->anon_mode != DAVRODS_CONF(conf, anonymous_mode))
         return false; // Disallow reusing a non-anonymous connection for
                       // authorized access and vice versa.
 
-    if (session_params->auth_scheme != conf->rods_auth_scheme)
+    if (session_params->auth_scheme != DAVRODS_CONF(conf, rods_auth_scheme))
         return false; // Disallow reusing a PAM authed connection for
                       // Native authed access and vice versa.
 
@@ -401,7 +400,7 @@ authn_status check_rods(request_rec *r, const char *username, const char *passwo
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
                   "Authenticating iRODS username '%s' using %s auth scheme.",
                   username,
-                  conf->rods_auth_scheme == DAVRODS_AUTH_PAM
+                  DAVRODS_CONF(conf, rods_auth_scheme) == DAVRODS_AUTH_PAM
                       ? "PAM"
                       : "Native"
                  );
@@ -519,8 +518,8 @@ authn_status check_rods(request_rec *r, const char *username, const char *passwo
             davrods_session_parameters_t *session_params
                 = apr_palloc(pool, sizeof(davrods_session_parameters_t));
             assert(session_params);
-            session_params->auth_scheme = conf->rods_auth_scheme;
-            session_params->anon_mode   = conf->anonymous_mode;
+            session_params->auth_scheme = DAVRODS_CONF(conf, rods_auth_scheme);
+            session_params->anon_mode   = DAVRODS_CONF(conf, anonymous_mode);
             apr_pool_userdata_set(session_params, "session_params", apr_pool_cleanup_null, pool);
 
             if (is_basic_auth) {

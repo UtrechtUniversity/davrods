@@ -10,14 +10,15 @@ protocol, `mod_dav`, for compliance with the WebDAV Class 2 standard.
 
 Notable features include:
 
-- Supports WebDAV Class 2. Locks are local to the Apache server.
-- Supports PAM and Native (a.k.a. STANDARD) iRODS authentication.
-- Supports SSL encryption for the entire iRODS connection.
-- Easy to configure using Apache configuration directives.
-- Supports an anonymous access mode for password-less public access.
-- Supports themeable directory listings for read-only web browser access.
-- Supports partial file up- and downloads and resumes (HTTP byte-ranges)
-- Supports iRODS server versions 4+ and is backwards compatible with 3.3.1.
+- WebDAV Class 2 support, with locks local to the Apache server
+- Connects to iRODS server versions 4+
+- PAM and Native (a.k.a. STANDARD) iRODS authentication
+- Optional negotiated SSL encryption for the entire iRODS connection
+- Configurable using Apache configuration directives
+- Optional anonymous access mode for password-less public access
+- Themeable directory listings for read-only web browser access.
+- Partial file up- and downloads and resumes (HTTP byte-ranges)
+- iRODS ticket-based access
 
 Themeable listings and anonymous access were inspired by Simon Tyrrell's
 [work](https://github.com/billyfish/eirods-dav) at Earlham Institute.
@@ -35,6 +36,7 @@ Please choose the right version for your platform:
 
 | Date        | Davrods ver. | iRODS runtime ver. | Packages                                                                          |
 | ----------- | ------------ | ------------------ | --------------------------------------------------------------------------------- |
+| 2020-06-02  | 1.5.0        | 4.2.8              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.8_1.5.0) |
 | 2019-12-20  | 1.4.2        | 4.2.7              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.7_1.4.2) |
 | 2019-06-20  | 1.4.2        | 4.2.6              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.6_1.4.2) |
 | 2019-04-03  | 1.4.2        | 4.2.5              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.5_1.4.2) |
@@ -79,9 +81,9 @@ package using the RPM or DEB file from the
 Download the Davrods package for your platform and install it using your
 package manager, for example:
 
-    yum install davrods-4.2.7_1.4.2-1.rpm
+    yum install davrods-4.2.8_1.5.0-1.rpm
     --or--
-    apt install davrods-4.2.7_1.4.2.deb
+    apt install davrods-4.2.8_1.5.0.deb
 
 Now see the __Configuration__ section for instructions on how to
 configure Davrods once it has been installed.
@@ -145,18 +147,22 @@ The binary distribution installs the `irods_environment.json` file in
 `/etc/httpd/irods`. In most iRODS setups, this file can be used as
 is.
 
-Importantly, the first seven options (from `irods_host` up to and
-including `irods_zone_name`) are **not** read from this file. These
-settings are taken from their equivalent Davrods configuration
-directives in the vhost file instead.
+Importantly, options such as `irods_host` and `irods_zone_name` are
+**not** read from this file (and are omitted for that reason).
+These settings are taken from their equivalent Davrods configuration
+directives in the vhost config file instead.
 
-The options in the provided environment file starting from
-`irods_client_server_negotiation` *do* affect the behaviour of
-Davrods. See the official documentation for help on these settings at:
-https://docs.irods.org/4.2.1/system_overview/configuration/#irodsirods_environmentjson
+Options in `irods_environment.json` that are known to affect Davrods
+behavior are the negotiation, ssl and encryption settings.
 
-For instance, if you want Davrods to connect to iRODS 3.3.1, the
-`irods_client_server_negotiation` option must be set to `"none"`.
+See the official documentation for more information on these settings:
+https://docs.irods.org/4.2.7/system_overview/configuration/#irodsirods_environmentjson
+
+### Ticket-based access ###
+
+Ticket access is disabled by default, and requires special configuration
+to enable, depending on your use case. Please see
+[README.advanced.md](./README.advanced.md) for more information.
 
 ## Building from source ##
 
@@ -269,7 +275,7 @@ page.
 
 ## License ##
 
-Copyright (c) 2016 - 2019, Utrecht University.
+Copyright (c) 2016 - 2020, Utrecht University.
 
 Davrods is licensed under the GNU Lesser General Public License version
 3 or higher (LGPLv3+). See the COPYING.LESSER file for details.

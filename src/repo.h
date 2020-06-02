@@ -2,7 +2,7 @@
  * \file
  * \brief     Davrods DAV repository.
  * \author    Chris Smeele
- * \copyright Copyright (c) 2016, Utrecht University
+ * \copyright Copyright (c) 2016-2020, Utrecht University
  *
  * This file is part of Davrods.
  *
@@ -65,5 +65,7 @@ struct dav_resource_private {
 };
 
 extern const dav_hooks_repository davrods_hooks_repository;
+
+const char *davrods_get_basename(const char *path);
 
 #endif /* _DAVRODS_REPO_H */

@@ -402,7 +402,7 @@ static dav_error * dav_generic_open_lockdb(request_rec *r, int ro, int force,
     );
     assert(conf);
 
-    comb->priv.lockdb_path = conf->locallock_lockdb_path;
+    comb->priv.lockdb_path = DAVRODS_CONF(conf, locallock_lockdb_path);
 
 
     if (comb->priv.lockdb_path == NULL) {

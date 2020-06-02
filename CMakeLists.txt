@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 2.8.12)
 
 project(davrods C)
 
-set(IRODSRT_VERSION "4.2.7" CACHE STRING "iRODS client library version")
+set(IRODSRT_VERSION "4.2.8" CACHE STRING "iRODS client library version")
 
-set(DAVRODS_FEATURE     "1.4.2")
+set(DAVRODS_FEATURE     "1.5.0")
 set(DAVRODS_VERSION     "${IRODSRT_VERSION}_${DAVRODS_FEATURE}")
 set(DAVRODS_VERSION_DEB "${IRODSRT_VERSION}-${DAVRODS_FEATURE}")
 
@@ -57,6 +57,7 @@ link_libraries(irods_client)
 
 add_compile_options(-Wall
                     -Wextra
+                    -pedantic
                     -Wno-unused-parameter
                     -Wno-missing-field-initializers
                     -Wno-format # Due to APR/iRODS format specifier oddities.
@@ -84,6 +85,7 @@ set(SOURCES
     src/prop.c
     src/propdb.c
     src/repo.c
+    src/listing.c
     src/lock_local.c
     src/byterange.c)
 
@@ -114,7 +116,7 @@ if(SYSTEM_LOOKS_LIKE STREQUAL "CentOS7")
                         aux/common/listing/README.md
             DESTINATION /etc/httpd/irods/)
 
-    install(FILES       README.md COPYING COPYING.LESSER changelog.txt
+    install(FILES       README.md README.advanced.md COPYING COPYING.LESSER changelog.txt
             DESTINATION /usr/share/doc/davrods-${DAVRODS_VERSION}/)
 
     install(DIRECTORY
@@ -141,7 +143,7 @@ elseif(SYSTEM_LOOKS_LIKE STREQUAL "Debian")
                         aux/common/listing/README.md
             DESTINATION /etc/apache2/irods/)
 
-    install(FILES       README.md COPYING COPYING.LESSER changelog.txt
+    install(FILES       README.md README.advanced.md COPYING COPYING.LESSER changelog.txt
             DESTINATION /usr/share/doc/davrods-${DAVRODS_VERSION}/)
 
     install(DIRECTORY
@@ -173,6 +175,7 @@ if(SYSTEM_LOOKS_LIKE STREQUAL "CentOS7")
 
     set(CPACK_RPM_USER_FILELIST
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/README.md"
+        "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/README.advanced.md"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/COPYING"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/COPYING.LESSER"
         "%doc /usr/share/doc/davrods-${DAVRODS_VERSION}/changelog.txt"

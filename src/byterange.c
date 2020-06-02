@@ -437,7 +437,7 @@ static dav_error *deliver_file_bytes(
 
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, resource->info->r,
                   "Reading data object in %luK chunks",
-                  resource->info->conf->rods_rx_buffer_size / 1024);
+                  DAVRODS_CONF(resource->info->conf, rods_rx_buffer_size) / 1024);
 
     // NB:
     // ap_set_byterange joins and truncates requested ranges when necessary,
@@ -453,7 +453,7 @@ static dav_error *deliver_file_bytes(
     while (*total_read < bytes_to_read) {
         // Have a buffer size of at most rods_rx_buffer_size bytes.
         size_t buffer_size = MIN(bytes_to_read - *total_read,
-                                 resource->info->conf->rods_rx_buffer_size);
+                                 DAVRODS_CONF(resource->info->conf, rods_rx_buffer_size));
         // Request to read that amount of bytes.
         data_obj->len = buffer_size;
 

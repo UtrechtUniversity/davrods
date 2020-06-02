@@ -2,7 +2,7 @@
  * \file
  * \brief     Davrods main module file.
  * \author    Chris Smeele
- * \copyright Copyright (c) 2016, Utrecht University
+ * \copyright Copyright (c) 2016-2020, Utrecht University
  *
  * This file is part of Davrods.
  *
@@ -34,6 +34,10 @@
 
 module AP_MODULE_DECLARE_DATA davrods_module;
 
+// For development/debugging purposes, these compile-time flags cause large
+// amounts of extra debug messages to be written.
+// This is separate from "debug"-level logging, which can be controlled via
+// Apache LogLevel config.
 #if defined(DAVRODS_DEBUG_DESPERATE) || defined(DAVRODS_DEBUG_VERY_DESPERATE)
 
     #define _TOSTR(x) #x
@@ -42,23 +46,9 @@ module AP_MODULE_DECLARE_DATA davrods_module;
     // Quick / dirty debugging output to stderr (this usually ends up in apache's error log).
     #define WHISPER(...) fprintf(stderr, "[davrods-debug] " _LOCSTR(__FILE__, __LINE__) ": " __VA_ARGS__)
 
-    #ifdef DAVRODS_DEBUG_VERY_DESPERATE
-
-        // printf debugging, but better.
-        #define PING() fprintf(stderr, "[%5d] " _LOCSTR(__FILE__, __LINE__) " %s()\n", getpid(), __func__)
-
-    #else /* DAVRODS_DEBUG_VERY_DESPERATE */
-
-        #define PING()
-
-    #endif
-
-#else /* defined(DAVRODS_DEBUG_DESPERATE) || defined(DAVRODS_DEBUG_VERY_DESPERATE) */
-
+#else
     #define WHISPER(...)
-    #define PING()
-
-#endif
+#endif /* defined(DAVRODS_DEBUG_DESPERATE) || defined(DAVRODS_DEBUG_VERY_DESPERATE) */
 
 #ifndef DAVRODS_PROVIDER_NAME
 #define DAVRODS_PROVIDER_NAME "davrods"
@@ -67,5 +57,12 @@ module AP_MODULE_DECLARE_DATA davrods_module;
 #ifndef DAVRODS_CONFIG_PREFIX
 #define DAVRODS_CONFIG_PREFIX DAVRODS_PROVIDER_NAME
 #endif /* DAVRODS_CONFIG_PREFIX */
+
+// Apache environment variable used for passing iRODS tickets to Davrods.
+#define DAVRODS_TICKET_VAR "DAVRODS_TICKET"
+
+// URL query string param name ("?ticket=..."). Must not contain special characters.
+// Used by HTML listing code to generate URLs if tickets are in use.
+#define DAVRODS_TICKET_URL_PARAM "ticket"
 
 #endif /* _MOD_DAVRODS_H */
