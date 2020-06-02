@@ -74,7 +74,7 @@ const char *davrods_get_basename(const char *path) {
  *
  * If Davrods is running with HTTP Basic auth enabled, then the pool
  * and the iRODS connection are set up by auth.c before we ever enter
- * repo.c. We can then simply return the pool from the request.
+ * repo.c. We can then simply return the pool from the connection.
  *
  * Otherwise, if Basic auth is disabled, then the first time this
  * function is entered in a HTTP connection, the pool and iRODS
@@ -321,6 +321,11 @@ static void copy_resource_context(dav_resource_private *dest, const dav_resource
 }
 
 
+/**
+ * \brief Determine the exposed iRODS root collection for a given request.
+ *
+ * Root can vary based on the logged in user and zone.
+ */
 static const char *get_rods_root(apr_pool_t *davrods_pool, request_rec *r) {
     davrods_dir_conf_t *conf = ap_get_module_config(
         r->per_dir_config,
@@ -363,6 +368,91 @@ static apr_status_t rods_stat_cleanup(void *mem) {
     freeRodsObjStat((rodsObjStat_t*)mem);
     return 0;
 }
+
+/**
+ * \brief Returns the active session ticket for the current iRODS connection.
+ *
+ * returns NULL if no ticket was set, or if the last set ticket was empty.
+ */
+static const char *get_session_ticket(const dav_resource *resource) {
+    const char *active_ticket;
+    int status = apr_pool_userdata_get((void*)&active_ticket,
+                                   "active_ticket", resource->info->davrods_pool);
+    assert(status == 0);
+
+    if (active_ticket && active_ticket[0])
+         return active_ticket;
+    else return NULL;
+}
+
+/**
+ * \brief Submits the given ticket to iRODS if it is not already active.
+ *
+ * This is a no-op if the submitted ticket is the same as the currently active
+ * (possibly empty) ticket.
+ */
+static void set_session_ticket(const dav_resource *resource, const char *ticket) {
+    // What's the active ticket? (NULL if unset)
+    const char *active_ticket = get_session_ticket(resource);
+
+    // Only send a ticket API request if this request's ticket differs from
+    // the previous one (if any).
+    if (!active_ticket) active_ticket = "";
+    if (!       ticket)        ticket = "";
+
+    WHISPER("Ticket: active-keepalive<%s> current-request<%s>\n", active_ticket, ticket);
+
+    if (strcmp(active_ticket, ticket)) {
+
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, resource->info->r,
+                      "%s session ticket", ticket[0] ? "Setting new" : "Clearing");
+
+        int status = rcTicketAdmin(resource->info->rods_conn,
+                                   &(ticketAdminInp_t) {
+                                        .arg1 = "session",
+                                        .arg2 = (char*)ticket,
+                                        .arg3 = "", .arg4 = "", .arg5 = "", .arg6 = "" });
+        if (status != 0) {
+            // Note: iRODS does not report that a submitted ticket is invalid.
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
+                          "Couldn't set session ticket: %s", get_rods_error_msg(status));
+        }
+
+        // Keep track of ticket state to avoid unnecessary API traffic for
+        // keep-alive requests.
+        apr_pool_userdata_set(apr_pstrdup(resource->info->davrods_pool, ticket),
+                              "active_ticket", NULL, resource->info->davrods_pool);
+    }
+}
+
+/**
+ * When Davrods is configured for ticket support in read-only mode
+ * ('DavrodsTickets ReadOnly'), and a ticket is submitted by a client along
+ * with this request, then destructive operations such as PUT, COPY, MOVE,
+ * DELETE are disallowed with a 403 response.
+ *
+ * This read-only option exists mainly to prevent triggering certain known
+ * issues that can occur when using tickets for write operations in iRODS 4.2.7
+ * and possibly earlier versions (some, but not all of these issues were fixed
+ * in iRODS 4.2.8).
+ * Additionally, iRODS only allows certain filesystem 'write' operations with
+ * an active ticket. For example, PUT on an existing file works, but MKCOLL,
+ * DELETE, COPY, MOVE, and PUTting new files will not work, which reduces
+ * WebDAV usability significantly.
+ *
+ * Write support for tickets is not advertised or documented by Davrods for the
+ * above reasons, but can still be enabled via vhost config directives if the
+ * sysadmin knows what they are doing...
+ */
+#define RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(resource)                             \
+    if (DAVRODS_CONF(resource->info->conf, ticket_mode) == DAVRODS_TICKET_MODE_READ_ONLY \
+     && get_session_ticket(resource)) {                                                  \
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,             \
+            "Disallowing attempted destructive operation via ticket on <%s>",            \
+            resource->uri);                                                              \
+        return dav_new_error(resource->pool, HTTP_FORBIDDEN, 0, 0,                       \
+                             "Ticket write actions are disallowed by this server");      \
+    }
 
 /**
  * \brief Query iRODS for information pertaining to a certain resource and fill in those resource properties.
@@ -423,7 +513,7 @@ static dav_error *get_dav_resource_rods_info(dav_resource *resource) {
             resource->exists = 0;
 
             ap_log_rerror(APLOG_MARK, APLOG_WARNING, APR_SUCCESS, r,
-                "Unknown iRODS object type <%d> for path <%s>! Will act as if it does not exist.",
+                "Unknown iRODS object type <%d> for path <%s>, ignored",
                 stat_out->objType,
                 res_private->rods_path
             );
@@ -435,6 +525,15 @@ static dav_error *get_dav_resource_rods_info(dav_resource *resource) {
 
 /**
  * \brief Create a DAV resource struct for the given request URI.
+ *
+ * For every WebDAV operation, this is the first Davrods function to be called
+ * by mod_dav. It may be called more than once for a single HTTP request. E.g.
+ * when handling a COPY request, dav_resource objects are created for both the
+ * source and the destination path.
+ *
+ * The output dav_resource object is passed by mod_dav as a handle to other
+ * Davrods functions. We attach our context to this object so that we can
+ * access it from those functions.
  *
  * \param      r               the request that lead to this resource
  * \param      root_dir        the root URI where Davrods lives (its <Location>)
@@ -451,7 +550,10 @@ static dav_error *dav_repo_get_resource(
     int use_checked_in,
     dav_resource **result_resource
 ) {
+    WHISPER("Get resource <%s>\n", r->uri);
+
     // Create private resource context {{{
+
     dav_resource_private *res_private;
     res_private = apr_pcalloc(r->pool, sizeof(*res_private));
     assert(res_private);
@@ -498,6 +600,38 @@ static dav_error *dav_repo_get_resource(
     resource->pool  = res_private->r->pool;
     resource->info  = res_private;
 
+    // Activate or deactivate iRODS tickets {{{
+
+    if (DAVRODS_CONF(res_private->conf, ticket_mode) != DAVRODS_TICKET_MODE_OFF) {
+        // Because tickets can be sent by HTTP clients in multiple ways, we
+        // delegate the parsing of incoming tickets to Apache configuration.
+        // Here, we only read an Apache (per-request) environment variable
+        // "DAVRODS_TICKET".
+        // In a default Davrods configuration, there is no way for a HTTP
+        // client to set such a variable, so to actually allow ticket use,
+        // additional configuration is needed, e.g. by conditionally setting
+        // the variable using RewriteRule directives, based on request headers
+        // or query strings.
+        //
+        // The iRODS server maintains a single active ticket as agent/session state.
+        // We keep track of the activated ticket locally (as part of keepalive
+        // state), so that we only need to make ticket API roundtrips when the
+        // current request's ticket differs from the active (keepalive) ticket.
+        //
+        // Note also that tickets are not additive with ACLs in iRODS, in the
+        // sense that when accessing an object with an active session ticket,
+        // ACLs on those objects related to your user do not necessarily apply.
+        // Submitting a ticket can actually reduce your level of access(!)
+        // Either way, it's important that we clear the session ticket if a
+        // keepalive request no longer bears a ticket.
+
+        // This variable may be NULL or empty.
+        set_session_ticket(resource, apr_table_get(r->subprocess_env, DAVRODS_TICKET_VAR));
+    }
+
+    // }}}
+
+    // Fill in object stat info. Do this after a ticket is applied (if any).
     err = get_dav_resource_rods_info(resource);
     if (err)
         return err;
@@ -606,6 +740,11 @@ static dav_error *dav_repo_open_stream(
     dav_stream_mode mode,
     dav_stream **result_stream
 ) {
+    // Streams are used to service requests to overwrite (parts of) files.
+
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(resource);
+
     struct dav_stream *stream = apr_pcalloc(resource->pool, sizeof(dav_stream));
     assert(stream);
 
@@ -1167,6 +1306,9 @@ static dav_error *dav_repo_deliver(
 static dav_error *dav_repo_create_collection(dav_resource *resource) {
     WHISPER("Creating collection at <%s> = <%s>\n", resource->uri, resource->info->rods_path);
 
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(resource);
+
     dav_resource *parent;
     dav_error *err = dav_repo_get_parent_resource(resource, &parent);
     if (err) {
@@ -1666,6 +1808,9 @@ static dav_error *dav_repo_copy_resource(
 ) {
     WHISPER("Copying resource <%s> to <%s>, depth %d\n", src->uri, dst->uri, depth);
 
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(dst);
+
     dav_resource *dst_parent;
 
     dav_error *err = dav_repo_get_parent_resource(dst, &dst_parent);
@@ -1677,12 +1822,9 @@ static dav_error *dav_repo_copy_resource(
         return err;
     }
 
-    if (!dst_parent->exists) {
-        return dav_new_error(
-            dst->pool, HTTP_CONFLICT, 0, 0,
-            "Parent directory does not exist."
-        );
-    }
+    if (!dst_parent->exists)
+        return dav_new_error(dst->pool, HTTP_CONFLICT, 0, 0,
+                             "Parent directory does not exist.");
 
     dav_copy_walk_private copy_ctx = { 0 };
     copy_ctx.src_rods_root = src->info->rods_path;
@@ -1708,6 +1850,9 @@ static dav_error *dav_repo_move_resource(
     dav_response **response
 ) {
     WHISPER("Moving resource <%s> to <%s>\n", src->uri, dst->uri);
+
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(dst);
 
     // Yes, the rename function takes a copyInp struct as its input.
     dataObjCopyInp_t rename_params = {{{ 0 }}};
@@ -1763,6 +1908,9 @@ static dav_error *dav_repo_remove_resource(
     dav_response **response
 ) {
     assert(resource->exists);
+
+    // Possibly reject the operation when a ticket is used for a write action.
+    RETURN_ERROR_IF_TICKET_ACTIVE_AND_READONLY(resource);
 
     request_rec *r = resource->info->r;
 

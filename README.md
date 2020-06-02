@@ -10,14 +10,15 @@ protocol, `mod_dav`, for compliance with the WebDAV Class 2 standard.
 
 Notable features include:
 
-- Supports WebDAV Class 2. Locks are local to the Apache server.
-- Supports PAM and Native (a.k.a. STANDARD) iRODS authentication.
-- Supports SSL encryption for the entire iRODS connection.
-- Easy to configure using Apache configuration directives.
-- Supports an anonymous access mode for password-less public access.
-- Supports themeable directory listings for read-only web browser access.
-- Supports partial file up- and downloads and resumes (HTTP byte-ranges)
-- Supports iRODS server versions 4+ and is backwards compatible with 3.3.1.
+- WebDAV Class 2 support, with locks local to the Apache server
+- Connects to iRODS server versions 4+
+- PAM and Native (a.k.a. STANDARD) iRODS authentication
+- Optional negotiated SSL encryption for the entire iRODS connection
+- Configurable using Apache configuration directives
+- Optional anonymous access mode for password-less public access
+- Themeable directory listings for read-only web browser access.
+- Partial file up- and downloads and resumes (HTTP byte-ranges)
+- iRODS ticket-based access
 
 Themeable listings and anonymous access were inspired by Simon Tyrrell's
 [work](https://github.com/billyfish/eirods-dav) at Earlham Institute.
@@ -155,6 +156,12 @@ behavior are the negotiation, ssl and encryption settings.
 
 See the official documentation for more information on these settings:
 https://docs.irods.org/4.2.7/system_overview/configuration/#irodsirods_environmentjson
+
+### Ticket-based access ###
+
+Ticket access is disabled by default, and requires special configuration
+to enable, depending on your use case. Please see
+[README.advanced.md](./README.advanced.md) for more information.
 
 ## Building from source ##
 

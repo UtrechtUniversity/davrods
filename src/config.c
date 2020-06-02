@@ -85,10 +85,12 @@ const davrods_dir_conf_t default_config = {
     // a temporary password more than once).
     .rods_auth_ttl = 1, // In hours.
 
+    .ticket_mode       = DAVRODS_TICKET_MODE_OFF,
+    .html_emit_tickets = DAVRODS_HTML_EMIT_TICKETS_ON, // no effect unless tickets on.
+
     .html_head   = "",
     .html_header = "",
     .html_footer = "",
-
     .force_download = DAVRODS_FORCE_DOWNLOAD_OFF,
 };
 
@@ -137,6 +139,9 @@ void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
 
     { int ret = set_exposed_root(conf, exposed_root);
       assert(ret >= 0); }
+
+    MERGE(ticket_mode);
+    MERGE(html_emit_tickets);
 
     MERGE(html_head);
     MERGE(html_header);
@@ -359,6 +364,42 @@ static const char *cmd_davrodsanonymouslogin(
     return NULL;
 }
 
+static const char *cmd_davrodstickets(
+    cmd_parms *cmd, void *config,
+    const char *arg1
+) {
+    davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
+
+    if (!strcasecmp(arg1, "readonly")) {
+        conf->ticket_mode = DAVRODS_TICKET_MODE_READ_ONLY;
+    } else if (!strcasecmp(arg1, "readwrite")) {
+        conf->ticket_mode = DAVRODS_TICKET_MODE_READ_WRITE;
+    } else if (!strcasecmp(arg1, "off")) {
+        conf->ticket_mode = DAVRODS_TICKET_MODE_OFF;
+    } else {
+        return "This directive accepts only 'ReadOnly', and 'Off' values";
+    }
+
+    return NULL;
+}
+
+static const char *cmd_davrodshtmlemittickets(
+    cmd_parms *cmd, void *config,
+    const char *arg1
+) {
+    davrods_dir_conf_t *conf = (davrods_dir_conf_t*)config;
+
+    if (!strcasecmp(arg1, "on")) {
+        conf->html_emit_tickets = DAVRODS_HTML_EMIT_TICKETS_ON;
+    } else if (!strcasecmp(arg1, "off")) {
+        conf->html_emit_tickets = DAVRODS_HTML_EMIT_TICKETS_OFF;
+    } else {
+        return "This directive accepts only 'On' and 'Off' values";
+    }
+
+    return NULL;
+}
+
 static bool file_readable(const char *path) {
     FILE *f = fopen(path, "r");
     if (f) {
@@ -492,6 +533,14 @@ const command_rec davrods_directives[] = {
     AP_INIT_TAKE1(
         DAVRODS_CONFIG_PREFIX "HtmlFooter", cmd_davrodshtmlfooter,
         NULL, ACCESS_CONF, "File that's inserted into HTML directory listings, in the body tag"
+    ),
+    AP_INIT_TAKE1(
+        DAVRODS_CONFIG_PREFIX "Tickets", cmd_davrodstickets,
+        NULL, ACCESS_CONF, "When set to ReadOnly, allows for submitting tickets to iRODS to gain read-only access to collections and data objects"
+    ),
+    AP_INIT_TAKE1(
+        DAVRODS_CONFIG_PREFIX "HtmlEmitTickets", cmd_davrodshtmlemittickets,
+        NULL, ACCESS_CONF, "When On, emits tickets received from the client in HTML listing anchor query strings"
     ),
     AP_INIT_TAKE1(
         DAVRODS_CONFIG_PREFIX "ForceDownload", cmd_davrodsforcedownload,
