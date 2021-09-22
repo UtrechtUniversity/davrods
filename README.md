@@ -34,15 +34,17 @@ Please choose the right version for your platform:
    All Davrods packages below should be compatible with any iRODS 4.x
    server version.
 
-| Date        | Davrods ver. | iRODS runtime ver. | Packages                                                                          |
-| ----------- | ------------ | ------------------ | --------------------------------------------------------------------------------- |
-| 2020-06-02  | 1.5.0        | 4.2.8              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.8_1.5.0) |
-| 2019-12-20  | 1.4.2        | 4.2.7              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.7_1.4.2) |
-| 2019-06-20  | 1.4.2        | 4.2.6              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.6_1.4.2) |
-| 2019-04-03  | 1.4.2        | 4.2.5              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.5_1.4.2) |
-| 2018-12-17  | 1.4.2        | 4.2.4              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.4_1.4.2) |
-| 2018-07-15  | 1.4.1        | 4.2.3              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.3_1.4.1) |
-| 2018-07-15  | 1.4.1        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.4.1)        |
+| Date        | Davrods ver. | iRODS runtime ver. | Packages                                                                          | Remarks
+| ----------- | ------------ | ------------------ | --------------------------------------------------------------------------------- | ---------------- |
+| 2021-07-28  | 1.5.0        | 4.2.10             | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.10_1.5.0)| Pre-release      |
+| 2021-06-16  | 1.5.0        | 4.2.9              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.9_1.5.0) | Pre-release      |
+| 2020-06-02  | 1.5.0        | 4.2.8              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.8_1.5.0) |                  |
+| 2019-12-20  | 1.4.2        | 4.2.7              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.7_1.4.2) |                  |
+| 2019-06-20  | 1.4.2        | 4.2.6              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.6_1.4.2) |                  |
+| 2019-04-03  | 1.4.2        | 4.2.5              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.5_1.4.2) |                  |
+| 2018-12-17  | 1.4.2        | 4.2.4              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.4_1.4.2) |                  |
+| 2018-07-15  | 1.4.1        | 4.2.3              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.3_1.4.1) |                  |
+| 2018-07-15  | 1.4.1        | 4.1.x              | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.1_1.4.1)        |                  |
 
 (older versions are still available on the
 [releases page](https://github.com/UtrechtUniversity/davrods/releases))
