@@ -168,8 +168,16 @@ to enable, depending on your use case. Please see
 
 ## Building from source ##
 
-To build from source, the following build-time dependencies must be
-installed (package names may differ on your platform):
+This repository includes a Vagrant configuration for building Davrods from source
+on either CentOS 7 (for the RPM package) or Ubuntu 18.04 LTS (for the DEB package).
+It can be found in `vagrant/build`. In order to build a package using Vagrant, edit
+the .env file in the Vagrant build directory. Adjust the BOXNAME and IRODS_VERSION vars
+as needed. Then run `vagrant up` to provision the VM. The VM has all dependencies
+pre-installed, as well as a clone of the Davrods repository. Log in on the VM
+using `vagrant ssh`, then generate the build directory and create the package (see below).
+
+To build from source without using the Vagrant configuration, the following build-time
+dependencies must be installed (package names may differ on your platform):
 
 - `cmake`
 - `make`

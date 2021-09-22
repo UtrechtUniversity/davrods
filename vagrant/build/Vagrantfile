@@ -1,0 +1,23 @@
+Vagrant.configure("2") do |config|
+
+  config.env.enable
+
+  # Workaround for Vagrant issue with TTY errors - copied from
+  # https://superuser.com/questions/1160025/how-to-solve-ttyname-failed-inappropriate-ioctl-for-device-in-vagrant
+  config.ssh.shell = "bash -c 'BASH_ENV=/etc/profile exec bash'"
+
+  config.disksize.size = ENV['DISKSPACE']
+
+  config.vm.define "dev" do |dev|
+    dev.vm.box = ENV['BOXNAME']
+    dev.vm.provider "virtualbox" do |v|
+      v.memory = ENV['MEMORY']
+      # Synchronize clock in one step if difference is more than 1000 ms / 1s
+      # Copied from https://stackoverflow.com/questions/19490652/how-to-sync-time-on-host-wake-up-within-virtualbox
+      v.customize [ "guestproperty", "set", :id, "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 1000 ]
+    end
+    dev.vm.provision "file", source: ".env", destination: "/tmp/irods-test.env"
+    dev.vm.provision :shell, :path => 'install-davrods-build-env.sh', :args => "/tmp/irods-test.env"
+  end
+
+end
