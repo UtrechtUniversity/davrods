@@ -257,21 +257,18 @@ Linux distributions:
 - Create directory `/var/lib/davrods`, and give apache exclusive access
   to it.
 
-## Bugs and ToDos ##
+## Bugs and feature requests ##
 
 Please report any issues you encounter on the
 [issues page](https://github.com/UtrechtUniversity/davrods/issues).
 
+## Contact information ##
+
+For questions or support, please contact the Yoda team at yoda@uu.nl.
+
 ## Authors ##
 
 - [Chris Smeele](https://github.com/cjsmeele)
-
-## Contact information ##
-
-For questions or support, contact Chris Smeele or Ton Smeele either
-directly or via the
-[Utrecht University RDM](http://www.uu.nl/en/research/research-data-management/contact-us)
-page.
 
 ## License ##
 
