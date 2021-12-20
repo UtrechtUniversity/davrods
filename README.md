@@ -36,8 +36,9 @@ Please choose the right version for your platform:
 
 | Date        | Davrods ver. | iRODS runtime ver. | Packages                                                                          | Remarks
 | ----------- | ------------ | ------------------ | --------------------------------------------------------------------------------- | ---------------- |
-| 2021-07-28  | 1.5.0        | 4.2.10             | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.10_1.5.0)| Pre-release      |
-| 2021-06-16  | 1.5.0        | 4.2.9              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.9_1.5.0) | Pre-release      |
+| 2021-12-20  | 1.5.0        | 4.2.11             | [RPM](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.11_1.5.0)     | Pre-release      |
+| 2021-07-28  | 1.5.0        | 4.2.10             | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.10_1.5.0)|                  |
+| 2021-06-16  | 1.5.0        | 4.2.9              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.9_1.5.0) |                  |
 | 2020-06-02  | 1.5.0        | 4.2.8              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.8_1.5.0) |                  |
 | 2019-12-20  | 1.4.2        | 4.2.7              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.7_1.4.2) |                  |
 | 2019-06-20  | 1.4.2        | 4.2.6              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.6_1.4.2) |                  |
@@ -282,7 +283,7 @@ For questions or support, please contact the Yoda team at yoda@uu.nl.
 
 ## License ##
 
-Copyright (c) 2016 - 2020, Utrecht University.
+Copyright (c) 2016 - 2021, Utrecht University.
 
 Davrods is licensed under the GNU Lesser General Public License version
 3 or higher (LGPLv3+). See the COPYING.LESSER file for details.
