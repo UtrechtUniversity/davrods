@@ -14,6 +14,19 @@ then source "$SETTINGSFILE"
 else echo "Error: settings file $SETTINGSFILE not found." && exit 1
 fi
 
+function get_package_version()
+{
+     local package="$1"
+     local IRODS_VERSION="$2"
+     local distro="$3"
+     if [ "$IRODS_VERSION" == "4.2.11" ] && [  "$distro" == "ubuntu" ]
+         then package_version="4.2.11-1~xenial"
+         else # shellcheck disable=SC2034
+              package_version="$IRODS_VERSION"
+     fi
+}
+
+
 if [ -f /etc/centos-release ]
 then
 
@@ -33,7 +46,10 @@ then
 
   for package in $YUM_IRODS_PACKAGES
   do echo "Installing package $package and its dependencies"
-     sudo yum -y install "$package-${IRODS_VERSION}"
+     get_package_version "$package" "$IRODS_VERSION" "centos"
+     # $package_version is set by sourced function
+     # shellcheck disable=SC2154
+     sudo yum -y install "$package-$package_version"
      sudo yum versionlock "$package"
   done
 
@@ -61,7 +77,8 @@ ENDAPTREPO
 
   for package in $APT_IRODS_PACKAGES
   do echo "Installing package $package and its dependencies"
-     sudo apt-get -y install "$package=${IRODS_VERSION}"
+     get_package_version "$package" "$IRODS_VERSION" "ubuntu"
+     sudo apt-get -y install "$package=$package_version"
      sudo aptitude hold "$package"
   done
 
