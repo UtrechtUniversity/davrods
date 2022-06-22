@@ -19,8 +19,8 @@ function get_package_version()
      local package="$1"
      local IRODS_VERSION="$2"
      local distro="$3"
-     if [ "$IRODS_VERSION" == "4.2.11" ] && [  "$distro" == "ubuntu" ]
-         then package_version="4.2.11-1~xenial"
+     if [ "$IRODS_VERSION" == "4.3.0" ] && [  "$distro" == "ubuntu" ]
+         then package_version="4.3.0-1~bionic"
          else # shellcheck disable=SC2034
               package_version="$IRODS_VERSION"
      fi
