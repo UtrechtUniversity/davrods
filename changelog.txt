@@ -1,3 +1,8 @@
+* Development version
+- Check username and password length before a new iRODS connection is established,
+  so that authentication attempts using illegal credentials are blocked before
+  they can cause any issues.
+
 * Tue Jun 2 2020 Chris Smeele <c.j.smeele@uu.nl> - 4.2.8_1.5.0-1
 - Added support for read-only ticket-based access (disabled by default)
 - Support merging config from overlapping Apache Location/If sections
