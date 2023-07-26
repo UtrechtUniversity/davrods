@@ -113,6 +113,21 @@ static authn_status rods_login(
     const char  *password,
     rcComm_t   **rods_conn
 ) {
+    // Verify credentials lengths
+
+    if (strlen(username) > 63) {
+        // This is the NAME_LEN and DB_USERNAME_LEN limit set by iRODS.
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, r,
+                      "Username exceeded max name length (63)");
+        return HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    if (strlen(password) > 63) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, r,
+            "Password exceeds length limits (%lu vs 63)", strlen(password));
+        return HTTP_INTERNAL_SERVER_ERROR;
+    }
+
     // Get config.
     davrods_dir_conf_t *conf = ap_get_module_config(
         r->per_dir_config,
@@ -225,12 +240,7 @@ static authn_status rods_login(
         // clientLoginWithPassword()'s signature specifies a WRITABLE password parameter.
         // I don't expect it to actually write to this field, but we'll play it
         // safe and pass it a temporary buffer.
-        if (strlen(password) > 63) {
-            // iRODS 4.1 appears to limit password length to 50 characters.
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, r,
-                          "Password exceeds length limits (%lu vs 63)", strlen(password));
-            return HTTP_INTERNAL_SERVER_ERROR;
-        }
+        //
         // This password field will be destroyed at the end of the HTTP request.
         char *password_buf = apr_pstrdup(r->pool, password);
 
@@ -491,15 +501,6 @@ authn_status check_rods(request_rec *r, const char *username, const char *passwo
         result = rods_login(r, username, password, &rods_conn);
         if (result == AUTH_GRANTED) {
             assert(rods_conn);
-
-            if (strlen(username) > 63) {
-                // This is the NAME_LEN and DB_USERNAME_LEN limit set by iRODS.
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, APR_SUCCESS, r,
-                              "Username exceeded max name length (63)");
-
-                rods_conn_cleanup(rods_conn);
-                return HTTP_INTERNAL_SERVER_ERROR;
-            }
 
             char *username_buf = apr_pstrdup(pool, username);
             char *password_buf = apr_pstrdup(pool, password);
