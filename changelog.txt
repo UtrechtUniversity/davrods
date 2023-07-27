@@ -1,7 +1,22 @@
-* Development version
+* Jul 27 2023 Sietse Snel - 4.2.12-1.5.1-1
 - Check username and password length before a new iRODS connection is established,
   so that authentication attempts using illegal credentials are blocked before
   they can cause any issues.
+
+* May 17 2023 Lazlo Westerhof - 4.2.12-1.5.0-1
+  Now supports iRODS 4.2.12 client libraries
+
+* Jun 22 2022 Felix Croes - 4.3.0-1.5.0-1
+  Now supports iRODS 4.3.0 client libraries
+
+* Dec 20 2021 Lazlo Westerhof - 4.2.11-1.5.0-1
+  Now supports iRODS 4.2.11 client libraries
+
+* Jul 28 2021 Lazlo Westerhof - 4.2.10-1.5.0-1
+  Now supports iRODS 4.2.10 client libraries
+
+* Jun 16 2021 Lazlo Westerhof - 4.2.9-1.5.0-1
+  Now supports iRODS 4.2.9 client libraries
 
 * Tue Jun 2 2020 Chris Smeele <c.j.smeele@uu.nl> - 4.2.8_1.5.0-1
 - Added support for read-only ticket-based access (disabled by default)
