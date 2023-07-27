@@ -36,7 +36,9 @@ Please choose the right version for your platform:
 
 | Date        | Davrods ver. | iRODS runtime ver. | Packages                                                                          | Remarks
 | ----------- | ------------ | ------------------ | --------------------------------------------------------------------------------- | ---------------- |
-| 2021-12-20  | 1.5.0        | 4.2.11             | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.11_1.5.0)| Pre-release      |
+| 2022-06-22  | 1.5.0        | 4.3.0              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.3.0_1.5.0) | Pre-release      |
+| 2023-07-27  | 1.5.1        | 4.2.12             | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.12_1.5.1)| Pre-release      |
+| 2021-12-20  | 1.5.0        | 4.2.11             | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.11_1.5.0)|                  |
 | 2021-07-28  | 1.5.0        | 4.2.10             | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.10_1.5.0)|                  |
 | 2021-06-16  | 1.5.0        | 4.2.9              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.9_1.5.0) |                  |
 | 2020-06-02  | 1.5.0        | 4.2.8              | [RPM, DEB](https://github.com/UtrechtUniversity/davrods/releases/tag/4.2.8_1.5.0) |                  |
