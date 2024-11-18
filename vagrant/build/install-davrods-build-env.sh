@@ -63,9 +63,6 @@ then
 
   echo "Installing DavRODS build environment on Ubuntu."
 
-  echo "Installing dependencies ..."
-  sudo apt-get -y install aptitude
-
   echo "Downloading and installing iRODS repository signing key ..."
   wget -qO - "$APT_IRODS_REPO_SIGNING_KEY_LOC" | sudo apt-key add -
 
@@ -79,7 +76,7 @@ ENDAPTREPO
   do echo "Installing package $package and its dependencies"
      get_package_version "$package" "$IRODS_VERSION" "ubuntu"
      sudo apt-get -y install "$package=$package_version"
-     sudo aptitude hold "$package"
+     sudo apt-mark hold "$package"
   done
 
   for package in $APT_GEN_PACKAGES
