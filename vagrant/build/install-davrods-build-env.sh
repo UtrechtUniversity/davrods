@@ -27,35 +27,35 @@ function get_package_version()
 }
 
 
-if [ -f /etc/centos-release ]
+if [ -f /etc/redhat-release ]
 then
 
-  echo "Installing DavRODS build environment on CentOS."
+  echo "Installing DavRODS build environment on AlmaLinux."
 
   echo "Installing dependencies ..."
-  sudo yum -y install wget epel-release yum-plugin-versionlock
+  sudo dnf -y install wget epel-release python3-dnf-plugin-versionlock
 
   echo "Importing repository signing key ..."
   sudo rpm --import "$YUM_IRODS_REPO_SIGNING_KEY_LOC"
 
   echo "Updating certificates for retrieving repository key ..."
-  sudo yum update -y ca-certificates
+  sudo dnf update -y ca-certificates
 
   echo "Adding iRODS repository ..."
-  wget -qO - https://packages.irods.org/renci-irods.yum.repo | sudo tee /etc/yum.repos.d/renci-irods.yum.repo
+  wget -qO - $YUM_REPO_FILE_LOC | sudo tee /etc/yum.repos.d/renci-irods.yum.repo
 
-  for package in $YUM_IRODS_PACKAGES
+  for package in $DNF_IRODS_PACKAGES
   do echo "Installing package $package and its dependencies"
-     get_package_version "$package" "$IRODS_VERSION" "centos"
+     get_package_version "$package" "$IRODS_VERSION" "almalinux"
      # $package_version is set by sourced function
      # shellcheck disable=SC2154
-     sudo yum -y install "$package-$package_version"
-     sudo yum versionlock "$package"
+     sudo dnf -y install "$package-$package_version"
+     sudo dnf versionlock add "$package"
   done
 
-  for package in $YUM_GEN_PACKAGES
+  for package in $DNF_GEN_PACKAGES
   do echo "Installing package $package and its dependencies"
-     sudo yum -y install "$package"
+     sudo dnf -y install "$package"
   done
 
 elif lsb_release -i | grep -q Ubuntu
