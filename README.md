@@ -59,9 +59,9 @@ is not listed above, you can most likely still build it yourself (see
 A log describing which features were added and which bugs were fixed in
 each version can be found in [changelog.txt](changelog.txt).
 
-We currently distribute RPM packages for CentOS 7 & RHEL systems and
+We currently distribute RPM packages for AlmaLinux 9 & RHEL systems and
 DEB packages for Debian & Ubuntu systems.
-We test our packages on CentOS 7 and (as of Davrods 1.4.0) Ubuntu 16.04.
+We test our packages on AlamaLinux 9 and Ubuntu 24.04.
 
 ## Installation ##
 
@@ -172,7 +172,7 @@ to enable, depending on your use case. Please see
 ## Building from source ##
 
 This repository includes a Vagrant configuration for building Davrods from source
-on either CentOS 7 (for the RPM package) or Ubuntu 18.04 LTS (for the DEB package).
+on either AlmaLinux 9 (for the RPM package) or Ubuntu 24.04 LTS (for the DEB package).
 It can be found in `vagrant/build`. In order to build a package using Vagrant, edit
 the .env file in the Vagrant build directory. Adjust the BOXNAME and IRODS_VERSION vars
 as needed. Then run `vagrant up` to provision the VM. The VM has all dependencies
@@ -232,7 +232,7 @@ make package
 That's it, you should now have an RPM or DEB in your build directory
 which you can install using yum or apt.
 
-**To install without a package manager on CentOS:**
+**To install without a package manager on AlmaLinux:**
 
 Run the following as user root:
 
@@ -285,7 +285,7 @@ For questions or support, please contact the Yoda team at yoda@uu.nl.
 
 ## License ##
 
-Copyright (c) 2016 - 2021, Utrecht University.
+Copyright (c) 2016 - 2025, Utrecht University.
 
 Davrods is licensed under the GNU Lesser General Public License version
 3 or higher (LGPLv3+). See the COPYING.LESSER file for details.
