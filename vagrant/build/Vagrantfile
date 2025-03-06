@@ -1,16 +1,28 @@
-Vagrant.configure("2") do |config|
+# Configuration variables.
+VAGRANTFILE_API_VERSION = "2"
+ENV['VAGRANT_DEFAULT_PROVIDER'] = "libvirt"
 
-  config.env.enable
+# Tested/supported box names:
+# - almalinux/9
+# - alvistack/ubuntu-24.04
+BOX="alvistack/ubuntu-24.04"
+CPU = 2
+RAM = 4096
 
-  # Workaround for Vagrant issue with TTY errors - copied from
-  # https://superuser.com/questions/1160025/how-to-solve-ttyname-failed-inappropriate-ioctl-for-device-in-vagrant
-  config.ssh.shell = "bash -c 'BASH_ENV=/etc/profile exec bash'"
+# Hostname
+HOST= "davrods.yoda.test"
+IP = "192.168.56.71"
+NETMASK = "255.255.255.0"
 
-  config.vm.define "dev" do |dev|
-    dev.vm.box = ENV['BOXNAME']
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.ssh.insert_key = false
+
+  config.vm.define "davrods" do |dev|
+    dev.vm.box = BOX
 
     dev.vm.provider :virtualbox do |vbox|
-      vbox.memory = ENV['MEMORY']
+      vbox.cpus   = CPU
+      vbox.memory = RAM
       # Synchronize clock in one step if difference is more than 1000 ms / 1s
       # Copied from https://stackoverflow.com/questions/19490652/how-to-sync-time-on-host-wake-up-within-virtualbox
       vbox.customize ["guestproperty", "set", :id, "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 1000]
@@ -19,11 +31,19 @@ Vagrant.configure("2") do |config|
 
     dev.vm.provider :libvirt do |libvirt|
       libvirt.driver = "kvm"
-      libvirt.memory = ENV['MEMORY']
+      libvirt.cpus   = CPU
+      libvirt.memory = RAM
     end
 
+    dev.vm.hostname = HOST
+    dev.vm.network 'private_network', ip: IP, netmask: NETMASK
+    dev.vm.provision "shell" do |s|
+      s.inline = "sudo hostnamectl hostname $1"
+      s.args   = HOST
+    end
+    dev.vm.provision "shell",
+      inline: "sudo timedatectl set-timezone Europe/Amsterdam"
     dev.vm.provision "file", source: ".env", destination: "/tmp/irods-test.env"
     dev.vm.provision :shell, :path => 'install-davrods-build-env.sh', :args => "/tmp/irods-test.env"
   end
-
 end
