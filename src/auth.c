@@ -103,9 +103,9 @@ static int do_rods_login_pam(
  * \param[in]  r         request record
  * \param[in]  username
  * \param[in]  password
- * \param[out] rods_conn will be filled with the new iRODS connection, if auth is succesful.
+ * \param[out] rods_conn will be filled with the new iRODS connection, if auth is successful.
  *
- * \return An authn status code, AUTH_GRANTED if succesful.
+ * \return An authn status code, AUTH_GRANTED if successful.
  */
 static authn_status rods_login(
     request_rec *r,
@@ -163,7 +163,7 @@ static authn_status rods_login(
 
     if (*rods_conn) {
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
-                      "Succesfully connected to iRODS zone '%s'", DAVRODS_CONF(conf, rods_zone));
+                      "Successfully connected to iRODS zone '%s'", DAVRODS_CONF(conf, rods_zone));
         miscSvrInfo_t *server_info = NULL;
         rcGetMiscSvrInfo(*rods_conn, &server_info);
 
@@ -278,7 +278,7 @@ static authn_status rods_login(
             *rods_conn = NULL;
 
         } else {
-            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r, "Login succesful");
+            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r, "Login successful");
             result = AUTH_GRANTED;
 
             // Disable SSL if it was in effect during auth but negotiation (or lack

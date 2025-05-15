@@ -88,7 +88,7 @@ const char *davrods_get_basename(const char *path) {
  * \param[in]  r    an apache request record.
  * \param[out] pool the fully inited davrods memory pool.
  *
- * \return NULL if succesful, otherwise a dav error.
+ * \return NULL if successful, otherwise a dav error.
  */
 static dav_error *get_davrods_pool(request_rec *r, apr_pool_t **pool) {
 
@@ -891,7 +891,7 @@ static dav_error *stream_send_buffer(
     // I briefly considered violating the const rule, because I strongly
     // suspect the buffer is wrongly marked non-const in iRODS code. There
     // doesn't seem to be much of a performance boost to gain from this though
-    // (actually no noticable change at all when using 4M buffers). Besides
+    // (actually no noticeable change at all when using 4M buffers). Besides
     // that, casting const away is a mortal sin.
     // So in the end we are on the safe side by copying the buffer.
     //
@@ -1662,7 +1662,7 @@ static dav_error *dav_repo_walk(
     WHISPER("root stat @ %p\n", ctx.params->root->info->stat);
     assert(ctx_res_private->stat);
 
-    // LockNull related walks can encounter non-existant resources.
+    // LockNull related walks can encounter non-existent resources.
     // Stat will be NULL for such resources.
     if (ctx.params->root->info->stat)
         *ctx_res_private->stat = *ctx.params->root->info->stat;
@@ -1973,7 +1973,7 @@ static dav_error *dav_repo_remove_resource(
 }
 
 static const char *dav_repo_getetag(const dav_resource *resource) {
-    // This mimicks dav_fs repo's getetag.
+    // This mimics dav_fs repo's getetag.
 
     dav_resource_private *res_private = resource->info;
 

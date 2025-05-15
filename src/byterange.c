@@ -442,7 +442,7 @@ static dav_error *deliver_file_bytes(
     // NB:
     // ap_set_byterange joins and truncates requested ranges when necessary,
     // and filters invalid ranges.
-    // For this reason we can assume that any error occuring during a seek is
+    // For this reason we can assume that any error occurring during a seek is
     // not an issue with the original range request, but an issue with the
     // iRODS object or the iRODS connection instead.
     // So errors here will result in a 500, not a 416.

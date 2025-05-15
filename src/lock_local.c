@@ -156,7 +156,7 @@ typedef struct dav_lock_discovery
 /* Indirect locks represent locks inherited from containing collections.
  * They reference the lock token for the collection the lock is
  * inherited from. A lock provider may also define a key to the
- * inherited lock, for fast datbase lookup. The key is opaque outside
+ * inherited lock, for fast database lookup. The key is opaque outside
  * the lock provider.
  */
 typedef struct dav_lock_indirect
