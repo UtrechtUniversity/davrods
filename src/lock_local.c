@@ -363,10 +363,21 @@ static dav_error * dav_generic_really_open_lockdb(dav_lockdb *lockdb)
     if (status) {
         err = dav_generic_dbm_new_error(lockdb->info->db, lockdb->info->pool,
                                         status);
+
+       char *status_code_string = apr_psprintf(lockdb -> info -> pool,
+                                                "%d",
+                                                APR_TO_OS_ERROR(status));
+       char *error_description = apr_pstrcat (lockdb -> info -> pool,
+                                              "Could not open the lock database. Path = ",
+                                               lockdb -> info -> lockdb_path,
+                                               ", status = ",
+                                               status_code_string,
+                                               NULL);
+
         return dav_push_error(lockdb->info->pool,
                               HTTP_INTERNAL_SERVER_ERROR,
                               DAV_ERR_LOCK_OPENDB,
-                              "Could not open the lock database.",
+                              error_description,
                               err);
     }
 
