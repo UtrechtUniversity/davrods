@@ -148,6 +148,10 @@ static authn_status rods_login(
     //setenv("IRODS_ENVIRONMENT_FILE", "/dev/null", 1);
     setenv("IRODS_ENVIRONMENT_FILE", DAVRODS_CONF(conf, rods_env_file), 1);
 
+    // Set spOption variable so that the connection will be labelled as
+    // a Davrods connection in ips.
+    setenv("spOption", "Davrods", 1);
+
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r,
                   "Using iRODS env file at <%s>", getenv("IRODS_ENVIRONMENT_FILE"));
 
