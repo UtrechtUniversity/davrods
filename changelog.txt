@@ -1,3 +1,15 @@
+* Mon Sep 8 2025 Sietse Snel - 4.3.4-1.5.2-1
+  - Improve logging of errors when opening the lock database.
+  - Use spOption to communicate client type to iRODS, so that iRODS
+    administrators can easily recognize DavRODS connections in ips
+    output
+
+* Thu Mar 6 2025 Lazlo Westerhof - 4.3.4-1.5.1-1
+  Now supports iRODS 4.3.4 client libraries
+
+* Mon Nov 11 2024 Lazlo Westerhof - 4.3.3-1.5.1-1
+  Now supports iRODS 4.3.3 client libraries
+
 * Thu Jul 27 2023 Sietse Snel - 4.2.12-1.5.1-1
 - Check username and password length before a new iRODS connection is established,
   so that authentication attempts using illegal credentials are blocked before
