@@ -2,7 +2,7 @@
  * \file
  * \brief     Davrods configuration.
  * \author    Chris Smeele
- * \copyright Copyright (c) 2016-2020, Utrecht University
+ * \copyright Copyright (c) 2016-2025, Utrecht University
  *
  * This file is part of Davrods.
  *
@@ -136,6 +136,8 @@ void *davrods_merge_dir_config(apr_pool_t *p, void *_parent, void *_child) {
     MERGE(anonymous_mode);
     MERGE(anonymous_auth_username);
     MERGE(anonymous_auth_password);
+
+    MERGE(rods_auth_ttl);
 
     { int ret = set_exposed_root(conf, exposed_root);
       assert(ret >= 0); }
