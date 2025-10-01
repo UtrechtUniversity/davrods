@@ -1,3 +1,6 @@
+* Wed Oct 1 2025 Lazlo Westerhof - 4.3.4-1.5.3-1
+  - Use authentication TTL in directory configuration
+
 * Mon Sep 8 2025 Sietse Snel - 4.3.4-1.5.2-1
   - Improve logging of errors when opening the lock database.
   - Use spOption to communicate client type to iRODS, so that iRODS
