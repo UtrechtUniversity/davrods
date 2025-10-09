@@ -11,3 +11,7 @@ GTAGS
 tags
 \#*
 .\#*
+
+# Vagrant files
+/vagrant/build/.vagrant
+/vagrant/build/*.log
