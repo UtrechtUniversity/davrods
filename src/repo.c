@@ -857,12 +857,20 @@ static dav_error *dav_repo_open_stream(
             openedDataObjInp_t *data_obj = &stream->data_obj;
             data_obj->l1descInx = status;
         } else {
+            int httpCode;
+
+            if (status == -818000) {
+                httpCode = HTTP_FORBIDDEN;
+            } else {
+                httpCode = HTTP_INTERNAL_SERVER_ERROR;
+            }
+
             ap_log_rerror(
                 APLOG_MARK, APLOG_ERR, APR_SUCCESS, resource->info->r,
                 "rcDataObjCreate failed for <%s>: %d = %s", open_params->objPath, status, get_rods_error_msg(status)
             );
             return dav_new_error(
-                resource->pool, HTTP_INTERNAL_SERVER_ERROR, 0, 0,
+                resource->pool, httpCode, 0, 0,
                 "Could not create destination resource"
             );
         }
