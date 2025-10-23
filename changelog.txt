@@ -1,3 +1,7 @@
+* Thu Oct 23 2025 Costanza Laudisa - 5.0.2-1.5.4-1
+  - Now supports iRODS 5.0.2 client libraries
+  - Improve HTTP error codes when user lacks writing rights
+
 * Wed Oct 1 2025 Lazlo Westerhof - 4.3.4-1.5.3-1
   - Use authentication TTL in directory configuration
 
