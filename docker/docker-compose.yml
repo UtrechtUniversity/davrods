@@ -1,0 +1,51 @@
+volumes:
+  icat_pg_data:
+
+services:
+  provider:
+    container_name: provider.davrods
+    platform: linux/amd64
+    hostname: provider.davrods
+    image: ghcr.io/utrechtuniversity/davrods-provider:5.0.2
+    ports:
+      - "8247:1247"
+      - "20000-20199:20000-20199"
+    depends_on:
+      - db
+    build:
+      context: images/davrods-provider
+    environment:
+      - TEST_USER_PASSWORD_HASH=${TEST_USER_PASSWORD_HASH}
+    restart: unless-stopped
+    # To keep the iRODS Rule Language from failing and producing RE_UNABLE_TO_READ_SESSION_VAR,
+    # we bump the maximum amount of shared memory from 64mb to 100mb.
+    shm_size: 100mb
+
+  db:
+    container_name: db.davrods
+    platform: linux/amd64
+    hostname: db.davrods
+    image: postgres:18
+    command: postgres -c standard_conforming_strings=off
+    environment:
+      - POSTGRES_DB=ICAT
+      - POSTGRES_USER=irods
+      - POSTGRES_PASSWORD=davrodsdev
+    volumes:
+      - icat_pg_data:/var/lib/postgresql
+    restart: unless-stopped
+
+  davrods:
+    container_name: data.davrods
+    platform: linux/amd64
+    hostname: data.davrods
+    image: ghcr.io/utrechtuniversity/davrods-dev:5.0.2_1.5.4
+    depends_on:
+      - provider
+    environment:
+      - TAG=main
+    ports:
+      - "8445:443"
+    build:
+      context: images/davrods-dev
+    restart: unless-stopped
