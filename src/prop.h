@@ -26,7 +26,7 @@
 
 extern const char *const davrods_namespace_uris[];
 extern const dav_hooks_liveprop davrods_hooks_liveprop;
-extern const dav_liveprop_spec  davrods_props[];
+extern const dav_liveprop_spec davrods_props[];
 extern const dav_liveprop_group davrods_liveprop_group;
 extern const size_t DAVRODS_PROP_COUNT;
 

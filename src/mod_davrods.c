@@ -20,15 +20,15 @@
  * along with Davrods.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "mod_davrods.h"
-#include "config.h"
 #include "auth.h"
 #include "common.h"
+#include "config.h"
 
 APLOG_USE_MODULE(davrods);
 
 static void register_hooks(apr_pool_t *p) {
-    davrods_auth_register(p);
-    davrods_dav_register(p);
+  davrods_auth_register(p);
+  davrods_dav_register(p);
 }
 
 module AP_MODULE_DECLARE_DATA davrods_module = {

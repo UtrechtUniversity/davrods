@@ -25,8 +25,8 @@
 #include "common.h"
 #include "config.h"
 
-#include <irods/rodsClient.h>
 #include <irods/rods.h>
+#include <irods/rodsClient.h>
 
 /**
  * \brief Private implementation-specific resource information.
@@ -37,31 +37,31 @@
  * resource information.
  */
 struct dav_resource_private {
-    // Information specific to the HTTP request {{{
+  // Information specific to the HTTP request {{{
 
-    request_rec        *r;
-    apr_pool_t         *davrods_pool;
-    davrods_dir_conf_t *conf;
-    rcComm_t           *rods_conn;
-    rodsEnv            *rods_env;
-    const char         *rods_root;
+  request_rec *r;
+  apr_pool_t *davrods_pool;
+  davrods_dir_conf_t *conf;
+  rcComm_t *rods_conn;
+  rodsEnv *rods_env;
+  const char *rods_root;
 
-    // }}}
-    // Information specific to the DAV resource {{{
+  // }}}
+  // Information specific to the DAV resource {{{
 
-    // This is `MAX_NAME_LEN` as specified by iRODS.
-    char rods_path[MAX_NAME_LEN]; // Currently 1024 + 64.
+  // This is `MAX_NAME_LEN` as specified by iRODS.
+  char rods_path[MAX_NAME_LEN]; // Currently 1024 + 64.
 
-    // relative_uri is resource->uri with the root_dir chopped off.
-    // i.e. with a Davrods in <Location /abc/def/>,
-    // resource->uri may be /abc/def/some_file.txt,
-    // while relative_uri will be just /some_file.txt.
-    const char *relative_uri;
+  // relative_uri is resource->uri with the root_dir chopped off.
+  // i.e. with a Davrods in <Location /abc/def/>,
+  // resource->uri may be /abc/def/some_file.txt,
+  // while relative_uri will be just /some_file.txt.
+  const char *relative_uri;
 
-    rodsObjStat_t *stat;
-    const char *root_dir;
+  rodsObjStat_t *stat;
+  const char *root_dir;
 
-    // }}}
+  // }}}
 };
 
 extern const dav_hooks_repository davrods_hooks_repository;

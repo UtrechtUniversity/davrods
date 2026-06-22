@@ -31,9 +31,9 @@
 
 #include <stdlib.h>
 
-#include <http_request.h>
-#include <http_protocol.h>
 #include <ap_provider.h>
+#include <http_protocol.h>
+#include <http_request.h>
 
 #include <irods/rodsClient.h>
 
@@ -42,8 +42,8 @@ APLOG_USE_MODULE(davrods);
 // Common utility functions {{{
 
 const char *get_rods_error_msg(int rods_error_code) {
-    char *submsg = NULL;
-    return rodsErrorName(rods_error_code, &submsg);
+  char *submsg = NULL;
+  return rodsErrorName(rods_error_code, &submsg);
 }
 
 // }}}
@@ -62,7 +62,7 @@ const dav_provider davrods_dav_provider_nolocks = {
     NULL, // binding - unimplemented.
     NULL, // search  - unimplemented.
 
-    NULL  // context - not needed.
+    NULL // context - not needed.
 };
 
 #endif /* DAVRODS_ENABLE_PROVIDER_NOLOCKS */
@@ -77,28 +77,30 @@ const dav_provider davrods_dav_provider_locallock = {
     NULL, // binding - unimplemented.
     NULL, // search  - unimplemented.
 
-    NULL  // context - not needed.
+    NULL // context - not needed.
 };
 
 #endif /* DAVRODS_ENABLE_PROVIDER_LOCALLOCK */
 
 void davrods_dav_register(apr_pool_t *p) {
 
-    // Register the namespace URIs.
-    dav_register_liveprop_group(p, &davrods_liveprop_group);
+  // Register the namespace URIs.
+  dav_register_liveprop_group(p, &davrods_liveprop_group);
 
-    // Register the DAV providers.
+  // Register the DAV providers.
 
 #ifdef DAVRODS_ENABLE_PROVIDER_NOLOCKS
-    dav_register_provider(p, DAVRODS_PROVIDER_NAME "-nolocks",   &davrods_dav_provider_nolocks);
+  dav_register_provider(p, DAVRODS_PROVIDER_NAME "-nolocks",
+                        &davrods_dav_provider_nolocks);
 #endif /* DAVRODS_ENABLE_PROVIDER_NOLOCKS */
 
 #ifdef DAVRODS_ENABLE_PROVIDER_LOCALLOCK
-    dav_register_provider(p, DAVRODS_PROVIDER_NAME "-locallock", &davrods_dav_provider_locallock);
+  dav_register_provider(p, DAVRODS_PROVIDER_NAME "-locallock",
+                        &davrods_dav_provider_locallock);
 #endif /* DAVRODS_ENABLE_PROVIDER_LOCALLOCK */
 
-#if !defined(DAVRODS_ENABLE_PROVIDER_NOLOCKS)   \
- && !defined(DAVRODS_ENABLE_PROVIDER_LOCALLOCK)
-    #error No DAV provider enabled. Please define one of the DAVRODS_ENABLE_PROVIDER_.* switches.
+#if !defined(DAVRODS_ENABLE_PROVIDER_NOLOCKS) &&                               \
+    !defined(DAVRODS_ENABLE_PROVIDER_LOCALLOCK)
+#error No DAV provider enabled. Please define one of the DAVRODS_ENABLE_PROVIDER_.* switches.
 #endif
 }
