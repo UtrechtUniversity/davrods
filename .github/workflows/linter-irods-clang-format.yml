@@ -1,0 +1,18 @@
+name: linter-irods-clang-format
+on: [push, pull_request]
+defaults:
+  run:
+    shell: bash
+jobs:
+  clang-format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install ClangFormat
+        run: |
+          sudo apt-get install -y clang-format
+
+      - name: Run ClangFormat
+        run: |
+          clang-format --dry-run -Werror src/*
