@@ -24,12 +24,12 @@
 
 #include "common.h"
 
-#include <irods/rodsClient.h>
 #include <irods/rods.h>
+#include <irods/rodsClient.h>
 
 dav_error *davrods_byterange_deliver_file(const dav_resource *resource,
                                           openedDataObjInp_t *data_obj,
-                                          ap_filter_t        *output,
+                                          ap_filter_t *output,
                                           apr_bucket_brigade *bb);
 
 #endif /* _DAVRODS_BYTERANGE_H */

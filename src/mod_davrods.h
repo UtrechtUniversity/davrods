@@ -22,14 +22,14 @@
 #ifndef _MOD_DAVRODS_H
 #define _MOD_DAVRODS_H
 
-#include <stdint.h>
-#include <stdbool.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-#include <httpd.h>
+#include <apr_strings.h>
 #include <http_config.h>
 #include <http_log.h>
-#include <apr_strings.h>
+#include <httpd.h>
 #include <mod_dav.h>
 
 extern module AP_MODULE_DECLARE_DATA davrods_module;
@@ -40,15 +40,19 @@ extern module AP_MODULE_DECLARE_DATA davrods_module;
 // Apache LogLevel config.
 #if defined(DAVRODS_DEBUG_DESPERATE) || defined(DAVRODS_DEBUG_VERY_DESPERATE)
 
-    #define _TOSTR(x) #x
-    #define _LOCSTR(file, line) file ":" _TOSTR(line)
+#define _TOSTR(x) #x
+#define _LOCSTR(file, line) file ":" _TOSTR(line)
 
-    // Quick / dirty debugging output to stderr (this usually ends up in apache's error log).
-    #define WHISPER(...) fprintf(stderr, "[davrods-debug] " _LOCSTR(__FILE__, __LINE__) ": " __VA_ARGS__)
+// Quick / dirty debugging output to stderr (this usually ends up in apache's
+// error log).
+#define WHISPER(...)                                                           \
+  fprintf(stderr,                                                              \
+          "[davrods-debug] " _LOCSTR(__FILE__, __LINE__) ": " __VA_ARGS__)
 
 #else
-    #define WHISPER(...)
-#endif /* defined(DAVRODS_DEBUG_DESPERATE) || defined(DAVRODS_DEBUG_VERY_DESPERATE) */
+#define WHISPER(...)
+#endif /* defined(DAVRODS_DEBUG_DESPERATE) ||                                  \
+          defined(DAVRODS_DEBUG_VERY_DESPERATE) */
 
 #ifndef DAVRODS_PROVIDER_NAME
 #define DAVRODS_PROVIDER_NAME "davrods"
@@ -61,8 +65,8 @@ extern module AP_MODULE_DECLARE_DATA davrods_module;
 // Apache environment variable used for passing iRODS tickets to Davrods.
 #define DAVRODS_TICKET_VAR "DAVRODS_TICKET"
 
-// URL query string param name ("?ticket=..."). Must not contain special characters.
-// Used by HTML listing code to generate URLs if tickets are in use.
+// URL query string param name ("?ticket=..."). Must not contain special
+// characters. Used by HTML listing code to generate URLs if tickets are in use.
 #define DAVRODS_TICKET_URL_PARAM "ticket"
 
 #endif /* _MOD_DAVRODS_H */

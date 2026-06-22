@@ -27,8 +27,8 @@
 extern const dav_hooks_locks davrods_hooks_locallock;
 
 typedef struct davrods_locklocal_lock_list_t {
-    const char *entry;
-    struct davrods_locklocal_lock_list_t *next;
+  const char *entry;
+  struct davrods_locklocal_lock_list_t *next;
 } davrods_locklocal_lock_list_t;
 
 /**
@@ -40,10 +40,9 @@ typedef struct davrods_locklocal_lock_list_t {
  *
  * \return a dav error, if bad stuff happens
  */
-dav_error *davrods_locklocal_get_locked_entries(
-    dav_lockdb *lockdb,
-    const dav_resource *col,
-    davrods_locklocal_lock_list_t **names
-);
+dav_error *
+davrods_locklocal_get_locked_entries(dav_lockdb *lockdb,
+                                     const dav_resource *col,
+                                     davrods_locklocal_lock_list_t **names);
 
 #endif /* _DAVRODS_LOCK_H_ */

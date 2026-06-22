@@ -29,7 +29,7 @@
 // however the apr sprintf function does not support the long-long notation.
 // -Wformat warnings related to %lu parameters can probably be ignored.
 #define DAVRODS_SIZE_T_FMT APR_SIZE_T_FMT
-//#define DAVRODS_SIZE_T_FMT "llu"
+// #define DAVRODS_SIZE_T_FMT "llu"
 
 /**
  * \brief Get the iRODS error message for the given iRODS status code.

@@ -26,9 +26,7 @@
 
 /// Send a HTML directory listing as a response to a web browser request.
 /// 'resource' must be a collection.
-dav_error *davrods_deliver_directory_listing(
-    const dav_resource *resource,
-    ap_filter_t *output
-);
+dav_error *davrods_deliver_directory_listing(const dav_resource *resource,
+                                             ap_filter_t *output);
 
 #endif /* _DAVRODS_LISTING_H */
