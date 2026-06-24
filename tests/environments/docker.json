@@ -1,0 +1,7 @@
+{
+    "davrods_url": "https://data.davrods/",
+    "zone_name": "tempZone",
+    "roles": {
+        "researcher": {"username": "researcher", "password": "test"}
+    }
+}
