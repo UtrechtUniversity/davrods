@@ -1,0 +1,47 @@
+---
+name: "Build Davrods iRODS provider image and push it to registry"
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '.github/workflows/build-push-image-provider.yml'
+      - 'docker/images/davrods-provider/**'
+
+jobs:
+  push-image:
+    if: github.repository == 'utrechtuniversity/davrods'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - name: Extract branch name
+      shell: bash
+      run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+      id: extract_branch
+
+    - name: Check out Davrods repository
+      uses: actions/checkout@v6
+      with:
+        path: davrods
+        repository: UtrechtUniversity/davrods
+        ref: ${{ steps.extract_branch.outputs.branch }}
+
+    - name: Authenticate to the container registry
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v7
+      with:
+        context: davrods/docker/images/davrods-provider
+        file: davrods/docker/images/davrods-provider/Dockerfile
+        push: true
+        tags: ghcr.io/utrechtuniversity/davrods-provider:${{ steps.extract_branch.outputs.branch }}
+        build-args: |
+          TAG=${{ steps.extract_branch.outputs.branch }}
