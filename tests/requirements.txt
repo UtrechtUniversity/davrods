@@ -1,5 +1,5 @@
 urllib3==2.6.3
-requests==2.32.4
+requests==2.33.0
 selenium==4.21.0
 splinter==0.21.0
 pytest-splinter==3.3.2
