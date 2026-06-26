@@ -1,0 +1,7 @@
+urllib3==2.6.3
+requests==2.32.4
+selenium==4.21.0
+splinter==0.21.0
+pytest-splinter==3.3.2
+pytest_bdd==8.1.0
+pytest==8.4.1

@@ -1,0 +1,97 @@
+name: Run WebDAV tests
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: 3.12
+
+    - name: Extract branch name
+      shell: bash
+      run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+      id: extract_branch
+
+    - name: Install API test dependencies
+      run: |
+        pip3 install --user -r tests/requirements.txt
+        sudo apt install -y docker-compose
+
+    - name: Prepare hosts file for API tests
+      run: |
+        sudo echo "127.0.0.1 data.davrods provider.davrods" | sudo tee -a /etc/hosts
+
+    - name: Start containerized Davrods setup
+      run: |
+        cd docker
+        docker compose pull
+        docker compose up -d
+
+    - name: Wait until iRODS is ready for tests
+      shell: bash
+      run: |
+        cd docker
+        echo "Waiting for iRODS to be available for tests ..."
+        docker exec data.davrods /bin/bash -c "until nc -vz provider.davrods 1247 >& /dev/null ; do printf '.'; sleep 1; done"
+        echo "iRODS is ready for integration tests."
+
+    - name: Set up test users and permissions
+      shell: bash
+      run: |
+        cd docker
+        echo "Setting up test users and permissions..."
+        docker exec provider.davrods /bin/bash -c "/root/set-up-test-accounts.sh"
+        echo "Test users and permissions have been set up"
+
+    - name: Wait until Davrods is ready for tests
+      shell: bash
+      run: |
+        echo "Waiting for Davrods to be available for tests..."
+        for i in $(seq 1 300); do
+          STATUS=$(curl -sku researcher:test -X PROPFIND -H "Depth: 0" https://data.davrods:8445/ \
+                        -o /dev/null --max-time 2 -w "%{http_code}" 2>/dev/null || echo "000")
+          if [ "$STATUS" = "207" ]; then
+            echo "Davrods is ready (HTTP $STATUS)"
+            exit 0
+          fi
+          printf "."
+          sleep 1
+        done
+        echo ""
+        echo "Timeout waiting for Davrods (last HTTP status: $STATUS)"
+        exit 1
+
+    - name: Run tests
+      shell: bash
+      run: |
+        cd tests
+        test -d mycache || mkdir -p mycache
+        pytest --environment environments/docker.json --webdav step_defs/webdav/test_webdav.py
+
+    - name: Output rodsLogs
+      if: failure()
+      run: |
+        docker exec provider.davrods sh -c 'cat /var/lib/irods-log/rodsLog*'
+
+    - name: Output DavRODS server logs
+      if: failure()
+      run: |
+        docker exec data.davrods sh -c 'set -x ; for log in error.log webdav_access.log webdav_anon_access.log; do echo "${log}:" ; cat "/var/log/apache2/$log" ; echo; done'
+
+# Uncomment section below when needed for debugging.
+#
+#    - name: Setup tmate session for debugging
+#      uses: mxschmitt/action-tmate@v3
+#      if: ${{ failure() }}
+#      with:
+#        limit-access-to-actor: true

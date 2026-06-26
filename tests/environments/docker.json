@@ -1,0 +1,7 @@
+{
+    "webdav_url": "https://data.davrods:8445",
+    "zone_name": "tempZone",
+    "roles": {
+        "researcher":              {"username": "researcher",              "password": "test"}
+    }
+}
