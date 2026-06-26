@@ -6,7 +6,7 @@ services:
     container_name: provider.davrods
     platform: linux/amd64
     hostname: provider.davrods
-    image: ghcr.io/utrechtuniversity/davrods-provider:5.0.2
+    image: ghcr.io/utrechtuniversity/davrods-provider:main
     ports:
       - "8247:1247"
       - "20000-20199:20000-20199"
@@ -39,7 +39,7 @@ services:
     container_name: data.davrods
     platform: linux/amd64
     hostname: data.davrods
-    image: ghcr.io/utrechtuniversity/davrods-dev:5.0.2_1.5.4
+    image: ghcr.io/utrechtuniversity/davrods-dev:main
     depends_on:
       - provider
     environment:
