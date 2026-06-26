@@ -4,6 +4,7 @@ on:
   push:
     branches:
     - main
+    - ci-extend-irods-ready-check
   pull_request:
 
 jobs:
@@ -43,6 +44,8 @@ jobs:
         cd docker
         echo "Waiting for iRODS to be available for tests ..."
         docker exec data.davrods /bin/bash -c "until nc -vz provider.davrods 1247 >& /dev/null ; do printf '.'; sleep 1; done"
+        echo "Waiting for iRODS response ..."
+        docker exec provider.davrods /bin/bash -c "until sudo -u irods ils /tempZone >& /dev/null; do printf '.'; sleep 1; done"
         echo "iRODS is ready for integration tests."
 
     - name: Set up test users and permissions
