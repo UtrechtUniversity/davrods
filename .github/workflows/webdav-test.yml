@@ -32,6 +32,8 @@ jobs:
         sudo echo "127.0.0.1 data.davrods provider.davrods" | sudo tee -a /etc/hosts
 
     - name: Start containerized Davrods setup
+      env:
+        TAG: ${{ github.event.pull_request.head.sha | github.sha }}
       run: |
         cd docker
         docker compose pull

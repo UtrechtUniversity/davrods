@@ -43,7 +43,7 @@ services:
     depends_on:
       - provider
     environment:
-      - TAG=main
+      - TAG=${TAG:-main}
     ports:
       - "8445:443"
     build:
