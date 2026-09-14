@@ -26,10 +26,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <apr_strings.h>
+#include <httpd.h>
 #include <http_config.h>
 #include <http_log.h>
-#include <httpd.h>
+#include <apr_strings.h>
 #include <mod_dav.h>
 
 extern module AP_MODULE_DECLARE_DATA davrods_module;
