@@ -4,6 +4,8 @@ on:
   push:
     branches:
     - main
+    - "**-wtr"
+    # We can force a WebDAV test run without opening a PR by pushing to a branch name that ends with "-wtr"
   pull_request:
 
 jobs:
