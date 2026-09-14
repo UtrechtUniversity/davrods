@@ -80,6 +80,13 @@ jobs:
         test -d mycache || mkdir -p mycache
         pytest --environment environments/docker.json --webdav step_defs/webdav/test_webdav.py
 
+    - name: Output container status and logs
+      if: failure()
+      run: |
+        cd docker
+        docker compose ps -a
+        docker compose logs --no-color --timestamps
+
     - name: Output rodsLogs
       if: failure()
       run: |
