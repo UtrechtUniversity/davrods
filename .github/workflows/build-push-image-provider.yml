@@ -23,7 +23,7 @@ jobs:
       id: extract_branch
 
     - name: Check out Davrods repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         path: davrods
         repository: UtrechtUniversity/davrods
