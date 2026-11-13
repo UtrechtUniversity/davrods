@@ -28,7 +28,6 @@ jobs:
     - name: Install API test dependencies
       run: |
         pip3 install --user -r tests/requirements.txt
-        sudo apt install -y docker-compose
 
     - name: Prepare hosts file for API tests
       run: |
