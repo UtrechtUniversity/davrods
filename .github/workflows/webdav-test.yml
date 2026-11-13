@@ -46,11 +46,13 @@ jobs:
       timeout-minutes: 15
       run: |
         cd docker
-        echo "Waiting for iRODS to be available for tests ..."
-        docker exec data.davrods /bin/bash -c "until nc -vz provider.davrods 1247 >& /dev/null ; do printf '.'; sleep 1; done"
+        echo "Waiting for iRODS provider container to complete initialization ..."
+        until docker logs provider.davrods 2>&1 | grep -q "Container startup complete" ; do printf '.'; sleep 2; done
+        echo ""
         echo "Waiting for iRODS response ..."
-        docker exec provider.davrods /bin/bash -c "until sudo -u irods ils /tempZone >& /dev/null; do printf '.'; sleep 1; done"
-        echo "iRODS is ready for integration tests."
+        until docker exec provider.davrods sudo -iu irods ils /tempZone >& /dev/null ; do printf '.'; sleep 1; done
+        echo ""
+        echo "iRODS is ready for WebDAV tests."
 
     - name: Set up test users and permissions
       shell: bash
